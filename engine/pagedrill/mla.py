@@ -1,7 +1,9 @@
 """MLA Handbook, 9th ed. citation mechanics transcribed from a print copy.
 
-Sections implemented: 2.90, 2.139, 5.7, 5.8, 5.89–5.91, 5.120–5.130, 6.5, 6.6, 6.28–6.30.
-Secs. 2.89–2.125 (italics of titles in prose) were not transcribed. Italics in the prose stay as typed.
+Sections implemented: 2.90, 2.106–2.109, 2.139, 5.7, 5.8, 5.89–5.91, 5.120–5.130, 6.5, 6.6, 6.28–6.30.
+Prose italics and quotation marks follow the works-cited source type (2.106–2.109).
+A title with no type signal is left as typed. Sec. 2.110 was not supplied.
+Quoted-inside-quoted and quoted-inside-italic title patterns were not on the supplied pages.
 """
 
 from __future__ import annotations
@@ -13,8 +15,54 @@ EN = "\u2013"
 EM_DASHES = "\u2014\u2014\u2014"
 CITE = "MLA Handbook, 9th ed., sec. {section}"
 
-# Still unread. Do not invent an italics-in-prose rule.
-UNSOURCED_SECTIONS = ("2.89–2.125",)
+# Sec. 2.110's own text was not supplied (2.107 only points at it).
+# The section number for the unread title-within-a-title patterns was not on the pages.
+UNSOURCED_SECTIONS = (
+    "2.110",
+    "title-within-a-title: quoted title inside a quoted title; quoted title inside an italic title",
+)
+
+# 2.106–2.109. Keys are citation source types. A bare title has no type, so it is not restyled.
+_ITALIC_TYPES = {
+    "book", "play", "newspaper", "journal", "magazine",
+    "epic", "premodern-epic",
+    "dissertation",
+    "film", "movie",
+    "tv-series", "television-series", "streaming-series",
+    "website", "app",
+    "video-game",
+    "radio", "radio-program",
+    "podcast",
+    "album", "music-album",
+    "musical-composition", "long-musical-composition",
+    "visual-art", "artwork", "painting",
+    "performing-arts", "performance",
+    "court-case", "legal-case",
+    "ship", "aircraft", "spacecraft",
+}
+_QUOTED_TYPES = {
+    "article", "journal-article", "magazine-article",
+    "encyclopedia-article",
+    "essay",
+    "short-story", "story",
+    "poem",
+    "chapter",
+    "web-page", "webpage",
+    "episode", "tv-episode",
+    "song",
+    "song-video", "music-video",
+    "lecture",
+}
+# 2.107 names these as not italic. Earthwork, ancient artwork, and building are the
+# one sentence that points at 2.110; only an explicit type is honored.
+_PLAIN_TYPES = {
+    "organization", "company",
+    "board-game", "card-game",
+    "earthwork", "ancient-artwork", "building",
+}
+_VESSEL_TYPES = {"ship", "aircraft", "spacecraft"}
+_VESSEL_PREFIX = re.compile(r"^(?:USS|HMS)\s+", re.IGNORECASE)
+_QUOTE_PAIRS = {"\u201c": "\u201d", "\u2018": "\u2019", '"': '"'}
 
 # 2.90. The parenthetical lists in the transcription are examples of categories.
 # Articles and coordinating conjunctions stay lowercase. Prepositions stay lowercase.
@@ -317,6 +365,352 @@ def _one_word(token: str, *, first: bool, last: bool) -> str:
 def _cap_word(token: str) -> str:
     lower = token.lower()
     return lower[:1].upper() + lower[1:] if lower else token
+
+
+def prose_title_treatment(source_type: str | None) -> str | None:
+    """Italic, quotation marks, or plain, from a works-cited source type. Unknown types return None."""
+    key = re.sub(r"[\s_]+", "-", str(source_type or "").strip().lower())
+    if key in _ITALIC_TYPES:
+        return "italic"
+    if key in _QUOTED_TYPES:
+        return "quotes"
+    if key in _PLAIN_TYPES:
+        return "plain"
+    return None
+
+
+def style_prose_titles(text: str, italic_spans: list[str] | None, entries: list[dict]) -> tuple[str, list[str], list[dict]]:
+    """Secs. 2.106–2.109. Restyle a prose title only when an entry type settles it.
+
+    The same title styled two ways, with no type, is flagged and left as typed.
+    A quoted title whose entry is an italicized work is italicized and flagged.
+    Two italic titles stay italic (2.108). An italic title inside a quoted title stays
+    italic (2.109). Quoted-inside-quoted and quoted-inside-italic are left as typed.
+    """
+    spans = list(italic_spans or [])
+    if not text:
+        return text, spans, []
+    catalog, flags = _title_catalog(entries)
+    if not catalog:
+        return text, spans, flags
+    italic = _span_flags(text, spans)
+    mentions = _title_mentions(text, catalog)
+    if not mentions:
+        return text, spans, flags
+    frozen = _freeze_unread_nests(mentions, flags)
+    _flag_inconsistent(text, italic, mentions, flags)
+    edits = []
+    for mention in mentions:
+        if id(mention) in frozen or mention["treatment"] is None:
+            continue
+        if _styled_by_ancestor(mention, mentions, frozen):
+            continue
+        edit = _mention_edit(text, italic, mention, mentions)
+        if edit:
+            edits.append(edit)
+    if not edits:
+        return text, spans, flags
+    updated, new_spans, edit_flags = _apply_title_edits(text, italic, edits)
+    return updated, new_spans, flags + edit_flags
+
+
+def _title_catalog(entries: list[dict]) -> tuple[list[dict], list[dict]]:
+    found: dict[str, dict] = {}
+    flags: list[dict] = []
+    for entry in entries or []:
+        title = str(entry.get("title") or "").strip()
+        if len(title) < 2:
+            continue
+        treatment = prose_title_treatment(entry.get("type"))
+        vessel = _norm_type(entry.get("type")) in _VESSEL_TYPES or bool(_VESSEL_PREFIX.match(title))
+        _add_title(found, flags, title, treatment, vessel)
+        container = str(entry.get("container") or "").strip()
+        # A short work's container is a long-form work (2.106, 2.107).
+        if container and treatment == "quotes":
+            _add_title(found, flags, container, "italic", bool(_VESSEL_PREFIX.match(container)))
+    return list(found.values()), flags
+
+
+def _add_title(found: dict, flags: list[dict], phrase: str, treatment: str | None, vessel: bool) -> None:
+    key = phrase.casefold()
+    prev = found.get(key)
+    if prev is None:
+        found[key] = {"phrase": phrase, "treatment": treatment, "vessel": vessel}
+        return
+    if prev["treatment"] is None and treatment is not None:
+        prev["treatment"] = treatment
+        prev["vessel"] = vessel
+        return
+    if treatment is not None and prev["treatment"] is not None and prev["treatment"] != treatment:
+        prev["treatment"] = None
+        flags.append({
+            "item": f'Prose title "{phrase}"',
+            "why": "Works-cited entries give this title more than one source type, so the prose was left as typed.",
+            "rule": cite("2.106"),
+        })
+
+
+def _norm_type(value) -> str:
+    return re.sub(r"[\s_]+", "-", str(value or "").strip().lower())
+
+
+def _span_flags(text: str, spans: list[str]) -> list[bool]:
+    flags = [False] * len(text)
+    pos = 0
+    for span in spans:
+        if not span:
+            continue
+        at = text.find(span, pos)
+        if at < 0:
+            at = text.find(span)
+        if at < 0:
+            continue
+        for index in range(at, at + len(span)):
+            flags[index] = True
+        pos = at + len(span)
+    return flags
+
+
+def _title_mentions(text: str, catalog: list[dict]) -> list[dict]:
+    mentions = []
+    for item in sorted(catalog, key=lambda row: len(row["phrase"]), reverse=True):
+        pattern = re.compile(r"(?<!\w)" + re.escape(item["phrase"]) + r"(?!\w)", re.IGNORECASE)
+        for match in pattern.finditer(text):
+            mentions.append({
+                "start": match.start(),
+                "end": match.end(),
+                "text": text[match.start():match.end()],
+                "phrase": item["phrase"],
+                "treatment": item["treatment"],
+                "vessel": item["vessel"],
+            })
+    return mentions
+
+
+def _contains(outer: dict, inner: dict) -> bool:
+    return (
+        outer is not inner
+        and outer["start"] <= inner["start"]
+        and inner["end"] <= outer["end"]
+        and (outer["start"], outer["end"]) != (inner["start"], inner["end"])
+    )
+
+
+def _direct_children(mention: dict, mentions: list[dict]) -> list[dict]:
+    contained = [other for other in mentions if _contains(mention, other)]
+    return [child for child in contained if not any(_contains(mid, child) for mid in contained)]
+
+
+def _freeze_unread_nests(mentions: list[dict], flags: list[dict]) -> set[int]:
+    """Quoted-inside-quoted and quoted-inside-italic were not on the supplied pages."""
+    frozen: set[int] = set()
+    seen = set()
+    for outer in mentions:
+        for inner in mentions:
+            if not _contains(outer, inner):
+                continue
+            unread = (
+                (outer["treatment"] == "quotes" and inner["treatment"] == "quotes")
+                or (outer["treatment"] == "italic" and inner["treatment"] == "quotes")
+            )
+            if not unread:
+                continue
+            frozen.add(id(outer))
+            frozen.add(id(inner))
+            key = (outer["start"], outer["end"], inner["start"], inner["end"])
+            if key in seen:
+                continue
+            seen.add(key)
+            flags.append({
+                "item": f'Prose title "{inner["text"]}" inside "{outer["text"]}"',
+                "why": (
+                    "A quoted title inside a quoted title, or a quoted title inside an italic title, "
+                    "was left as typed. Those patterns were not on the supplied pages. "
+                    "Sec. 2.108 keeps two italic titles italic. A sec. 2.109 web-page example keeps "
+                    "an italic title italic inside quotation marks."
+                ),
+                "rule": cite("2.108"),
+            })
+    for mention in mentions:
+        if id(mention) not in frozen:
+            continue
+        for other in mentions:
+            if _contains(mention, other):
+                frozen.add(id(other))
+    return frozen
+
+
+def _flag_inconsistent(text: str, italic: list[bool], mentions: list[dict], flags: list[dict]) -> None:
+    grouped: dict[str, list] = {}
+    labels: dict[str, str] = {}
+    for mention in mentions:
+        if mention["treatment"] is not None:
+            continue
+        key = mention["phrase"].casefold()
+        labels.setdefault(key, mention["text"])
+        grouped.setdefault(key, []).append(_mention_signature(text, italic, mention))
+    for key, signatures in grouped.items():
+        if len(set(signatures)) < 2:
+            continue
+        flags.append({
+            "item": f'Prose title "{labels[key]}"',
+            "why": (
+                "This title is styled in more than one way, and the works-cited entry has no source type "
+                "that settles italics or quotation marks. Each mention was left as typed."
+            ),
+            "rule": cite("2.106"),
+        })
+
+
+def _mention_signature(text: str, italic: list[bool], mention: dict) -> tuple:
+    quoted = _quote_bounds(text, mention["start"], mention["end"]) is not None
+    styled = any(italic[mention["start"]:mention["end"]])
+    return (quoted, styled)
+
+
+def _styled_by_ancestor(mention: dict, mentions: list[dict], frozen: set[int]) -> bool:
+    for other in mentions:
+        if not _contains(other, mention):
+            continue
+        if id(other) in frozen or other["treatment"] is None:
+            continue
+        return True
+    return False
+
+
+def _quote_bounds(text: str, start: int, end: int) -> tuple[int, int] | None:
+    if start < 1 or end >= len(text):
+        return None
+    closing = _QUOTE_PAIRS.get(text[start - 1])
+    if closing and text[end] == closing:
+        return start - 1, end + 1
+    return None
+
+
+def _mention_edit(text: str, italic: list[bool], mention: dict, mentions: list[dict]) -> tuple | None:
+    children = _direct_children(mention, mentions)
+    treatment = mention["treatment"]
+    quoted = _quote_bounds(text, mention["start"], mention["end"])
+    mask = _style_mask(mention, children, italic, treatment)
+    inner = mention["text"]
+    changed = list(italic[mention["start"]:mention["end"]]) != mask
+    if treatment == "italic":
+        if quoted:
+            changed = True
+        if not changed:
+            return None
+        why = (
+            "The works-cited entry is a self-contained work (secs. 2.106–2.107). "
+            "The prose mention was set in italics."
+        )
+        if quoted:
+            why = (
+                "The works-cited entry is a self-contained work (secs. 2.106–2.107), "
+                "but this mention is in quotation marks. The quotation marks were removed "
+                "and the title was italicized."
+            )
+        start, end = quoted if quoted else (mention["start"], mention["end"])
+        return _edit(start, end, inner, mask, mention["text"], why, "2.107")
+    if treatment == "quotes":
+        own_italic = _own_italic(mention, children, italic)
+        if quoted and not own_italic and not changed:
+            return None
+        if quoted:
+            start, end = mention["start"], mention["end"]
+            replacement = inner
+        else:
+            start, end = mention["start"], mention["end"]
+            replacement = "\u201c" + inner + "\u201d"
+            mask = [False] + mask + [False]
+            changed = True
+        why = (
+            "The works-cited type is a short work contained in another (secs. 2.106 and 2.109), "
+            "so the prose mention is in quotation marks and that title itself is not italic."
+        )
+        return _edit(start, end, replacement, mask, mention["text"], why, "2.109")
+    if treatment == "plain":
+        if not any(italic[mention["start"]:mention["end"]]):
+            return None
+        why = _plain_why(mention["phrase"])
+        return _edit(mention["start"], mention["end"], inner, mask, mention["text"], why, "2.107")
+    return None
+
+
+def _edit(start, end, replacement, mask, label, why, section) -> tuple:
+    return (start, end, replacement, mask, {
+        "item": f'Prose title "{label}"',
+        "why": why,
+        "rule": cite(section),
+    })
+
+
+def _plain_why(phrase: str) -> str:
+    return (
+        f'Secs. 2.106–2.107 do not italicize "{phrase}" when the source type is an organization, '
+        "a board or card game, or an earthwork, ancient artwork, or building. Italics were removed. "
+        "Sec. 2.110 itself was not supplied, so no further exception was applied."
+    )
+
+
+def _own_italic(mention: dict, children: list[dict], italic: list[bool]) -> bool:
+    covered = [False] * (mention["end"] - mention["start"])
+    for child in children:
+        if child["treatment"] != "italic":
+            continue
+        for index in range(child["start"] - mention["start"], child["end"] - mention["start"]):
+            covered[index] = True
+    return any(
+        italic[mention["start"] + index] and not covered[index]
+        for index in range(len(covered))
+    )
+
+
+def _style_mask(mention: dict, children: list[dict], italic: list[bool], treatment: str) -> list[bool]:
+    length = mention["end"] - mention["start"]
+    if treatment == "italic":
+        mask = [True] * length
+        if mention.get("vessel"):
+            prefix = _VESSEL_PREFIX.match(mention["text"])
+            if prefix:
+                for index in range(prefix.end()):
+                    mask[index] = False
+    else:
+        mask = [False] * length
+    for child in children:
+        rel = child["start"] - mention["start"]
+        if child["treatment"] == "italic":
+            sub = _style_mask(child, [], italic, "italic")
+            mask[rel:rel + len(sub)] = sub
+        elif child["treatment"] == "plain":
+            for index in range(child["end"] - child["start"]):
+                mask[rel + index] = False
+        elif child["treatment"] is None:
+            for index in range(child["end"] - child["start"]):
+                mask[rel + index] = italic[child["start"] + index]
+    return mask
+
+
+def _apply_title_edits(text: str, italic: list[bool], edits: list[tuple]) -> tuple[str, list[str], list[dict]]:
+    chars = list(text)
+    flags = []
+    for start, end, replacement, mask, flag in sorted(edits, key=lambda item: item[0], reverse=True):
+        chars[start:end] = list(replacement)
+        italic[start:end] = list(mask)
+        flags.append(flag)
+    flags.reverse()
+    updated = "".join(chars)
+    spans = []
+    index = 0
+    while index < len(italic):
+        if not italic[index]:
+            index += 1
+            continue
+        end = index + 1
+        while end < len(italic) and italic[end]:
+            end += 1
+        spans.append(updated[index:end])
+        index = end
+    return updated, spans, flags
 
 
 def shorten_range(span: str) -> str:

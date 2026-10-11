@@ -44,8 +44,10 @@ row("No period after the title or any heading (1.3)", S["ch1_3"], not title_p.te
 row("Text begins on the next double-spaced line after the title, first line indented 0.5 in. (1.3)", S["ch1_3"], ps[5].text and ps[5].paragraph_format.first_line_indent == Inches(0.5))
 row("Title capitalization per Handbook 2.90", "MLA Handbook, 9th ed., sec. 2.90",
     title_p.text == "Reading, Writing, and the Screen" and mla_rules.title_case("reading, writing, and the screen") == title_p.text
-    and mla_rules.title_case("anti-slavery movements in the atlantic") == "Anti-slavery Movements in the Atlantic",
-    "paper title follows sec. 2.90; closed prefix Anti-slavery is the one transcribed example")
+    and mla_rules.title_case("anti-slavery movements in the atlantic") == "Anti-slavery Movements in the Atlantic"
+    and mla_rules.title_case("life as i find it") == "Life As I Find It"
+    and mla_rules.title_case("the artist as critic") == "The Artist as Critic",
+    "paper title follows sec. 2.90; prepositions are a category (The Artist as Critic); a subordinating as is capitalized (Life As I Find It); Anti-slavery stays closed")
 row("Headings flush left, not indented or centered (1.5)", S["ch1_5"], all(h.alignment in (None, 0) and h.paragraph_format.first_line_indent in (None, 0) for h in heads))
 row("Each heading level styled consistently; same typeface/size as text; bold used for prominence (1.5, 1.2)", S["ch1_5"], len({(h.style.name, bool(h.runs[0].bold), eff(h.runs[0], h)) for h in heads}) == 1)
 row("Headings not numbered/lettered (\"generally avoid\") (1.5)", S["ch1_5"], not any(re.match(r"^\d+[.)]", h.text) for h in heads), "numbers removed and flagged: discipline/instructor may want them")
@@ -96,8 +98,32 @@ _in_many, _ = mla_rules.in_text([{"family": "Nickerson", "given": "A"}, {"family
 row("\"et al.\" in parenthetical citations (Handbook 6.5)", "MLA Handbook, 9th ed., sec. 6.5",
     "(Adams et al.)" in txt and _in_two == "(Lemery and Auerbach 4\u20135)" and _in_many == "(Nickerson et al. 135)",
     "two authors joined by and; three or more use the first surname and et al.")
-row("Titles of works italicized in prose (Handbook 2.89-2.125)", "MLA Handbook, 9th ed., secs. 2.89–2.125 (not transcribed)", "NOT VERIFIED",
-    "those sections were not in the transcribed pages; italics in the prose stay as typed (Wolf Hall was already italic). Sec. 2.90 covers capitalization only")
+_wolf = next(p for p in body if "Wolf Hall" in p.text)
+_prose_book, _prose_book_spans, _prose_book_flags = mla_rules.style_prose_titles(
+    "She read Wolf Hall twice.", [], [{"title": "Wolf Hall", "type": "book"}])
+_prose_article, _prose_article_spans, _ = mla_rules.style_prose_titles(
+    "Baron wrote Redefining Reading last year.", ["Redefining Reading"],
+    [{"title": "Redefining Reading", "type": "journal-article"}])
+_prose_unknown, _prose_unknown_spans, _prose_unknown_flags = mla_rules.style_prose_titles(
+    "She read Mystery Title twice.", [], [{"title": "Mystery Title"}])
+_prose_nest, _prose_nest_spans, _ = mla_rules.style_prose_titles(
+    "See Ten Plays: The Trojan Women today.", ["Ten Plays: "],
+    [{"title": "Ten Plays: The Trojan Women", "type": "book"}, {"title": "The Trojan Women", "type": "play"}])
+_prose_ok = (
+    ital(_wolf, "Wolf Hall")
+    and _prose_book_spans == ["Wolf Hall"] and not any(ch in "\u201c\u201d\"" for ch in _prose_book)
+    and _prose_article.startswith("Baron wrote \u201c") and _prose_article_spans == []
+    and _prose_unknown == "She read Mystery Title twice." and _prose_unknown_spans == [] and _prose_unknown_flags == []
+    and any("The Trojan Women" in span for span in _prose_nest_spans)
+)
+row("Prose titles take italics or quotation marks from the works-cited type (2.106-2.109)",
+    "MLA Handbook, 9th ed., secs. 2.106–2.109", _prose_ok,
+    "book type italicizes; journal-article type quotes and does not italicize the article; no type leaves the prose as typed; an italic title inside an italic title stays italic (2.108). Wolf Hall was already italic in the sample")
+row("Earthworks, ancient artworks, and buildings (2.110)", "MLA Handbook, 9th ed., sec. 2.110 (not supplied)", "NOT VERIFIED",
+    "sec. 2.107 says these are not italicized and says see 2.110. The section text was not on the supplied pages, so no further exception was written")
+row("Title within a title: quoted inside quoted, and quoted inside italic",
+    "MLA Handbook, 9th ed., title-within-a-title (section number not on the supplied pages)", "NOT VERIFIED",
+    "not on pp. 74–76. A quoted title inside a quoted title (single quotes) and a quoted title inside an italic title were not printed. Sec. 2.108 does say two italic titles both stay italic. A sec. 2.109 web page keeps an italic title italic inside quotation marks")
 _entry_ok = all(p.text.endswith(".") for p in refs) and "https://doi.org/10.1632/adfl.43.2.11." in ref["Berman"].text
 row("Entry punctuation: period after author, title, and entry; commas inside the container (5.120-5.122)", "MLA Handbook, 9th ed., secs. 5.120–5.122",
     _entry_ok and mla_rules.format_url("https://www.jstor.org/stable/40859548") == "www.jstor.org/stable/40859548",
@@ -147,7 +173,7 @@ with open("checklist_mla.md", "w") as f:
     for r in rows: f.write(f"| {r[0]} | {r[1]} | {r[2]} | **{r[3]}** | {r[4]} |\n")
     c = {k: sum(1 for r in rows if r[3] == k) for k in ("PASS", "FAIL", "FLAG", "NOT VERIFIED")}
     f.write(f"\n**Totals:** {c['PASS']} pass, {c['FAIL']} fail, {c['FLAG']} flagged, {c['NOT VERIFIED']} not verified.\n\n")
-    f.write("**Status: NOT FULLY VERIFIED (not selectable).** Layout (ch. 1) and the transcribed citation sections are sourced: 2.90, 2.139, 5.7, 5.8, 5.89–5.91, 5.120–5.130, 6.5, 6.6, 6.28–6.30. Still missing: secs. 2.89–2.125 (titles italicized in prose). That gap is not inferred. The profile stays hidden.\n\n## Flags from the formatter\n")
+    f.write("**Status: NOT FULLY VERIFIED (not selectable).** Layout (ch. 1) and the transcribed citation sections are sourced: 2.90, 2.106–2.109, 2.139, 5.7, 5.8, 5.89–5.91, 5.120–5.130, 6.5, 6.6, 6.28–6.30. Still missing: sec. 2.110, and the title-within-a-title patterns that were not on the supplied pages (a quoted title inside a quoted title; a quoted title inside an italic title). Their section number was not printed. Those gaps are not inferred. The profile stays hidden.\n\n## Flags from the formatter\n")
     for fl in ch["flags"]: f.write(f"- **{fl['item']}**: {fl['why']} ({fl['rule']})\n")
     f.write("\n## Logged changes (the diff the user approves before saving)\n")
     for x in ch["changes"]: f.write(f"- `{x['kind']}`: \u201c{x['before'][:150]}\u201d \u2192 \u201c{x['after'][:170]}\u201d\n")

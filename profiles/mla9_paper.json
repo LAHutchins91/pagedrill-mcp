@@ -2,9 +2,12 @@
   "id": "mla9-research-paper",
   "name": "MLA Handbook, 9th edition \u2014 student research paper",
   "publisher": "Modern Language Association",
-  "status": "PARTIAL: layout and the transcribed citation sections are sourced; sec. 2.89-2.125 is not, so this style stays hidden",
+  "status": "PARTIAL: secs. 2.106-2.109 are sourced; sec. 2.110 and the unread title-within-a-title patterns are not, so this style stays hidden",
   "verified_on": "",
-  "unsourced_sections": ["2.89-2.125"],
+  "unsourced_sections": [
+    "2.110",
+    "title-within-a-title: quoted title inside a quoted title; quoted title inside an italic title"
+  ],
   "grades": {
     "V9": "rule text read in the official 9th-ed. source",
     "E9": "attested only by official 9th-ed. examples (no rule text read)",

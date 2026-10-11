@@ -23,6 +23,7 @@ from pagedrill.mla import (
     shorten_year_range,
     supplied,
     timestamp_span,
+    style_prose_titles,
     title_case,
     title_case_with_flags,
     title_sort_parts,
@@ -41,8 +42,20 @@ class MlaStaysHidden(unittest.TestCase):
         self.assertFalse(profile["hidden"] is False)
         self.assertFalse(profile["checklist_verified"])
         self.assertFalse(is_selectable(profile))
-        self.assertEqual(profile["unsourced_sections"], ["2.89-2.125"])
-        self.assertEqual(UNSOURCED_SECTIONS, ("2.89–2.125",))
+        self.assertEqual(
+            profile["unsourced_sections"],
+            [
+                "2.110",
+                "title-within-a-title: quoted title inside a quoted title; quoted title inside an italic title",
+            ],
+        )
+        self.assertEqual(
+            UNSOURCED_SECTIONS,
+            (
+                "2.110",
+                "title-within-a-title: quoted title inside a quoted title; quoted title inside an italic title",
+            ),
+        )
         self.assertFalse(str(profile["status"]).startswith("verified"))
 
 
@@ -87,6 +100,14 @@ class TitleCase(unittest.TestCase):
         self.assertEqual(title_case("notes after the war ended"), "Notes After the War Ended")
         self.assertEqual(title_case("the world before rome fell"), "The World Before Rome Fell")
         self.assertEqual(title_case("notes after the war"), "Notes after the War")
+        # "as" is also a preposition ("The Artist as Critic"). It is capitalized when it introduces a clause.
+        self.assertEqual(title_case("life as i find it"), "Life As I Find It")
+        self.assertEqual(title_case("the artist as critic"), "The Artist as Critic")
+
+    def test_infinitive_article_and_coordinating_conjunction(self):
+        self.assertEqual(title_case("how to play chess"), "How to Play Chess")
+        self.assertEqual(title_case("romeo and juliet"), "Romeo and Juliet")
+        self.assertEqual(title_case("under the bamboo tree"), "Under the Bamboo Tree")
 
     def test_ambiguous_part_of_speech_is_left_as_typed(self):
         cased, flags = title_case_with_flags("letters after going home")
@@ -100,6 +121,149 @@ class TitleCase(unittest.TestCase):
 
     def test_untitled_text_is_not_recased(self):
         self.assertEqual(title_case("roses are red", exact=True), "roses are red")
+
+
+class ProseTitleStyle(unittest.TestCase):
+    def test_book_type_italicizes_a_plain_mention(self):
+        text, spans, flags = style_prose_titles(
+            "She read Wolf Hall twice.",
+            [],
+            [{"title": "Wolf Hall", "type": "book"}],
+        )
+        self.assertEqual(text, "She read Wolf Hall twice.")
+        self.assertEqual(spans, ["Wolf Hall"])
+        self.assertTrue(flags)
+        self.assertIn("2.107", flags[0]["rule"])
+
+    def test_article_type_uses_quotation_marks_and_not_italics(self):
+        text, spans, flags = style_prose_titles(
+            "Baron wrote Redefining Reading last year.",
+            ["Redefining Reading"],
+            [{"title": "Redefining Reading", "type": "journal-article"}],
+        )
+        self.assertEqual(text, "Baron wrote \u201cRedefining Reading\u201d last year.")
+        self.assertEqual(spans, [])
+        self.assertTrue(flags)
+        self.assertIn("2.109", flags[0]["rule"])
+
+    def test_unknown_type_is_not_restyled(self):
+        text, spans, flags = style_prose_titles(
+            "She read Wolf Hall twice.",
+            [],
+            [{"title": "Wolf Hall"}],
+        )
+        self.assertEqual(text, "She read Wolf Hall twice.")
+        self.assertEqual(spans, [])
+        self.assertEqual(flags, [])
+
+    def test_inconsistent_styling_without_a_type_is_left_and_flagged(self):
+        source = "She read Wolf Hall. Later Wolf Hall returned."
+        text, spans, flags = style_prose_titles(
+            source,
+            ["Wolf Hall"],
+            [{"title": "Wolf Hall"}],
+        )
+        self.assertEqual(text, source)
+        self.assertEqual(spans, ["Wolf Hall"])
+        self.assertEqual(len(flags), 1)
+        self.assertIn("left as typed", flags[0]["why"])
+
+    def test_quoted_book_is_flagged_and_italicized(self):
+        text, spans, flags = style_prose_titles(
+            "She read \u201cWolf Hall\u201d yesterday.",
+            [],
+            [{"title": "Wolf Hall", "type": "book"}],
+        )
+        self.assertEqual(text, "She read Wolf Hall yesterday.")
+        self.assertEqual(spans, ["Wolf Hall"])
+        self.assertTrue(any("quotation marks" in item["why"] for item in flags))
+
+    def test_italic_title_inside_an_italic_title_stays_italic(self):
+        source = "See Ten Plays: The Trojan Women today."
+        text, spans, flags = style_prose_titles(
+            source,
+            ["Ten Plays: "],
+            [
+                {"title": "Ten Plays: The Trojan Women", "type": "book"},
+                {"title": "The Trojan Women", "type": "play"},
+            ],
+        )
+        self.assertEqual(text, source)
+        self.assertTrue(any("The Trojan Women" in span for span in spans))
+        self.assertNotIn("\u201c", text)
+        self.assertFalse(any("left as typed" in item["why"] for item in flags))
+
+    def test_italic_title_inside_a_quoted_title_stays_italic(self):
+        text, spans, flags = style_prose_titles(
+            "Read The Princess Bride You Don't Know online.",
+            [],
+            [
+                {"title": "The Princess Bride You Don't Know", "type": "web-page"},
+                {"title": "Princess Bride", "type": "film"},
+            ],
+        )
+        self.assertEqual(text, "Read \u201cThe Princess Bride You Don't Know\u201d online.")
+        self.assertEqual(spans, ["Princess Bride"])
+        self.assertTrue(flags)
+
+    def test_quoted_inside_quoted_is_not_guessed(self):
+        source = "See Notes on The Raven today."
+        text, spans, flags = style_prose_titles(
+            source,
+            [],
+            [
+                {"title": "Notes on The Raven", "type": "essay"},
+                {"title": "The Raven", "type": "poem"},
+            ],
+        )
+        self.assertEqual(text, source)
+        self.assertEqual(spans, [])
+        self.assertTrue(any("left as typed" in item["why"] for item in flags))
+
+    def test_quoted_title_inside_an_italic_title_is_not_guessed(self):
+        source = "See The Book of The Raven today."
+        text, spans, flags = style_prose_titles(
+            source,
+            ["The Book of The Raven"],
+            [
+                {"title": "The Book of The Raven", "type": "book"},
+                {"title": "The Raven", "type": "poem"},
+            ],
+        )
+        self.assertEqual(text, source)
+        self.assertEqual(spans, ["The Book of The Raven"])
+        self.assertTrue(flags)
+
+    def test_vessel_prefix_stays_roman(self):
+        text, spans, flags = style_prose_titles(
+            "The crew boarded USS Enterprise.",
+            [],
+            [{"title": "USS Enterprise", "type": "ship"}],
+        )
+        self.assertEqual(text, "The crew boarded USS Enterprise.")
+        self.assertEqual(spans, ["Enterprise"])
+        self.assertTrue(flags)
+
+    def test_building_type_is_not_italic(self):
+        text, spans, flags = style_prose_titles(
+            "They visited the Taj Mahal.",
+            ["Taj Mahal"],
+            [{"title": "Taj Mahal", "type": "building"}],
+        )
+        self.assertEqual(text, "They visited the Taj Mahal.")
+        self.assertEqual(spans, [])
+        self.assertTrue(any("2.110" in item["why"] for item in flags))
+
+    def test_already_italic_book_is_unchanged(self):
+        source = "A long novel such as Wolf Hall can be read in print or on a screen (Mantel)."
+        text, spans, flags = style_prose_titles(
+            source,
+            ["Wolf Hall"],
+            [{"title": "Wolf Hall", "type": "book"}],
+        )
+        self.assertEqual(text, source)
+        self.assertEqual(spans, ["Wolf Hall"])
+        self.assertEqual(flags, [])
 
 
 class NumberRanges(unittest.TestCase):

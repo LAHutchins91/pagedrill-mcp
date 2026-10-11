@@ -5,7 +5,7 @@ from pathlib import Path
 sys.path.insert(0, "src")
 sys.path.insert(0, str(Path(__file__).resolve().parents[3] / "engine"))
 from fmtlib import *
-from pagedrill.mla import cite, repeat_byline, shorten_locations, shorten_range, sort_entries, title_case_with_flags, works_cited_authors
+from pagedrill.mla import cite, repeat_byline, shorten_locations, shorten_range, sort_entries, style_prose_titles, title_case_with_flags, works_cited_authors
 SRC, DST, PROFILE, REFS = sys.argv[1:5]
 prof = json.load(open(PROFILE)); refs = json.load(open(REFS))["references"]; S = prof["sources"]
 FONT, SIZE = prof["font"]["name"], prof["font"]["size_pt"]
@@ -143,7 +143,17 @@ def fix_spaces(text):
         L.flag("Two spaces after periods", "Changed to one space (MLA 1.2 default). MLA allows two if your instructor prefers.", S["ch1_1"])
     return t2
 for b in body:
-    if not b["level"]: b["text"] = fix_spaces(fix_cites(b["text"]))
+    if b["level"]:
+        continue
+    b["text"] = fix_spaces(fix_cites(b["text"]))
+    # Secs. 2.106–2.109. A title is restyled only when the works-cited type settles it.
+    styled, spans, prose_flags = style_prose_titles(b["text"], b["italic"], refs)
+    for fl in prose_flags:
+        L.flag(fl["item"], fl["why"], fl["rule"])
+    if styled != b["text"] or spans != b["italic"]:
+        L.change("prose-title-style", b["text"], styled, cite("2.106"))
+        b["text"] = styled
+        b["italic"] = spans
 
 # ---------- 6. build ----------
 out = Document()
