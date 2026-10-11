@@ -1,8 +1,11 @@
 """Reformat a messy student paper to MLA 9 (profiles/mla9_paper.json). Format only: never rewrites sentences, never invents data.
 usage: python3 src/format_mla.py mla_before.docx mla_after.docx profiles/mla9_paper.json refs_mla.json"""
 import json, re, sys
+from pathlib import Path
 sys.path.insert(0, "src")
+sys.path.insert(0, str(Path(__file__).resolve().parents[3] / "engine"))
 from fmtlib import *
+from pagedrill.mla import cite, repeat_byline, shorten_locations, shorten_range, sort_entries, title_case, works_cited_authors
 SRC, DST, PROFILE, REFS = sys.argv[1:5]
 prof = json.load(open(PROFILE)); refs = json.load(open(REFS))["references"]; S = prof["sources"]
 FONT, SIZE = prof["font"]["name"], prof["font"]["size_pt"]
@@ -33,8 +36,10 @@ t0 = title
 if any(r.bold or r.underline for r in title_runs): L.change("title-style", "bold/underlined, 16 pt", "plain, 12 pt, centered", S["ch1_3"])
 if re.search(r"[.]$", title): title = title[:-1]; L.change("title-period", t0, title, S["ch1_3"])
 if title.strip("\u201c\u201d\"") != title: title = title.strip("\u201c\u201d\""); L.change("title-quotes", t0, title, S["ch1_3"])
-if title.isupper(): L.flag("Title", "Typed in all capital letters. MLA 1.3 says not to; recasing needs the Handbook's capitalization rules (2.90, subscription-only), so the formatter leaves it for the writer.", S["ch1_3"])
-L.flag("Title capitalization", "Kept exactly as typed. MLA 1.3 refers to section 2.90 for capitalization, which is subscription-only and was not read; the formatter does not recase titles.", S["ch1_3"])
+cased = title_case(title)
+if cased != title:
+    L.change("title-capitalization", title, cased, cite("2.90"))
+    title = cased
 
 # ---------- 3. headings (1.5) ----------
 for b in body:
@@ -44,7 +49,10 @@ for b in body:
         L.change("heading-numbering", b["text"], t2, S["ch1_5"])
         L.flag(f'Heading "{b["text"]}"', "Number removed: MLA 1.5 says generally avoid numbers/letters on headings unless your discipline uses them. Put them back if your instructor wants numbered sections.", S["ch1_5"])
         b["text"] = t2
-    if b["text"].isupper(): L.flag(f'Heading "{b["text"]}"', "All capitals: MLA 1.5 says avoid them; recasing needs 2.90 (not read). Left for the writer.", S["ch1_5"])
+    headed = title_case(b["text"])
+    if headed != b["text"]:
+        L.change("heading-capitalization", b["text"], headed, cite("2.90"))
+        b["text"] = headed
 from collections import Counter
 cnt = Counter(b["level"] for b in body if b["level"])
 for lvl, n in cnt.items():
@@ -60,21 +68,19 @@ for r in refs:
 MON = prof["entries"]["month_abbrev_over_four_letters"]["map"]
 SEEN9 = {"January", "September"}
 def dash(p, key):
-    a, _, b = p.partition("-")
-    if a.isdigit() and b.isdigit() and int(a) > 99 and len(a) == len(b) and a[:-2] == b[:-2]:
-        L.flag(f"Pages {p} ({key})", "MLA shortens the second number of some ranges (Handbook 2.139, subscription-only, not read). Kept in full.", "MLA Handbook 2.139 (not verified)")
-    return p.replace("-", "\u2013")
+    return shorten_range(p)
 def end_title(t): return t if t[-1] in "?!" else t + "."
+order_before = [k for t in ref_texts for k, v in orig_for.items() if v == t]
+refs, order_flags = sort_entries(refs)
+for fl in order_flags:
+    L.flag(fl["item"], fl["why"], fl["rule"])
 rendered = []
+previous_names = None
 for r in refs:
-    a = r["authors"][0]
-    au = f'{a["family"]}, {a["given"]}' + (", et al." if r.get("et_al") else ("" if a["given"].endswith(".") else "."))
-    if len(r["authors"]) == 2:
-        au = f'{a["family"]}, {a["given"]}, and {r["authors"][1]["given"]} {r["authors"][1]["family"]}.'
-        L.flag(f"Authors ({r['key']})", "Two-author pattern taken from an MLA post written for the 8th edition (not verified for the 9th).", S["two_authors_8th"])
-    if r.get("et_al"): L.flag(f"Authors ({r['key']})", "'et al.' after the first author: matches the 9th-ed. example 'Adams, Peter, et al.' (Closer Look); the rule text itself (Handbook 5.3-5.22) is subscription-only.", S["closer_look"])
+    au, previous_names = repeat_byline(r, previous_names)
+    work_title = r["title"] if r.get("untitled") else title_case(r["title"])
     if r["type"] == "book":
-        segs = [(au + " ", False, False), (r["title"], True, False), (". " + r["publisher"] + ", " + r["year"] + ".", False, False)]
+        segs = [(au + " ", False, False), (work_title, True, False), (". " + r["publisher"] + ", " + r["year"] + ".", False, False)]
     else:
         date = r["year"]
         if r.get("month"):
@@ -83,16 +89,13 @@ for r in refs:
         if r.get("season"): date = f"{r['season'].lower()} {r['year']}"
         tail = f", vol. {r['volume']}" + (f", no. {r['issue']}" if r.get("issue") else "") + f", {date}, pp. {dash(r['pages'], r['key'])}"
         if r.get("doi"): tail += f", https://doi.org/{re.sub(r'^(https?://(dx\.)?doi\.org/|doi:\s*)', '', r['doi'], flags=re.I)}"
-        segs = [(au + " \u201c" + end_title(r["title"]) + "\u201d ", False, False), (r["container"], True, False), (tail + ".", False, False)]
+        segs = [(au + " \u201c" + end_title(work_title) + "\u201d ", False, False), (r["container"], True, False), (tail + ".", False, False)]
     txt = "".join(s[0] for s in segs)
     L.change("works-cited-entry", orig_for[r["key"]], txt, S["closer_look"])
-    rendered.append((norm(a["family"]) + norm(r.get("title", "")), segs, r))
+    rendered.append((norm(r["authors"][0]["family"]) + norm(r.get("title", "")), segs, r))
     if r["key"] == "berman": L.flag("Berman entry", "Crossref has this DOI but no author, volume or issue; those came from the student's entry (and match MLA's own example). Confirm against the article.", "crossref/crossref_results.json")
     if r["key"] == "baron": L.flag("Baron entry", "No DOI in the student's entry. MLA 5.84 prefers a DOI for works consulted online; if read online, add https://doi.org/10.1632/pmla.2013.128.1.193 (Crossref). Not added automatically.", S["doi_post"])
-order_before = [k for t in ref_texts for k, v in orig_for.items() if v == t]
-rendered.sort(key=lambda x: x[0])
-L.change("works-cited-order", ", ".join(order_before), ", ".join(x[2]["key"] for x in rendered), S["ch1_6"])
-L.flag("Alphabetizing detail", "Order is by author surname (1.6 says the list is alphabetic). Letter-by-letter and article-skipping rules come from an 8th-ed. post (Handbook 5.124-5.130 not read); no ties in this list.", S["alpha_8th"])
+L.change("works-cited-order", ", ".join(order_before), ", ".join(x[2]["key"] for x in rendered), cite("5.123"))
 L.change("works-cited-label", wc_label, "Works Cited" if len(rendered) > 1 else "Work Cited", S["ch1_6"])
 
 # ---------- 5. in-text citations (QG 2024; Closer Look 6.30) ----------
@@ -110,6 +113,8 @@ def fix_cites(text):
             rest = re.sub(rf"^{re.escape(fam)}(\s+et al\.?)?,?\s*", "", it)
             rest = re.sub(r"^(19|20)\d\d[a-z]?\b,?\s*", "", rest)            # MLA in-text: no year
             rest = re.sub(r"^pp?\.\s*", "", rest)                              # no "p." before location
+            if rest:
+                rest = shorten_locations(rest)
             # author already named in the same sentence (outside these parentheses) -> location only
             sent_start, inq = 0, False                                          # sentence start, ignoring periods inside quotations
             for i_, ch in enumerate(text[:m.start()]):
@@ -118,7 +123,6 @@ def fix_cites(text):
             in_prose = re.search(rf"\b{re.escape(fam)}\b", text[sent_start:m.start()])
             if in_prose and len(items) == 1 and rest: out.append(rest)
             else: out.append((fam + etal + (" " + rest if rest else "")).strip())
-            if etal: L.flag(f"Citation ({fam} et al.)", "'et al.' kept as typed; the 9th-ed. rule for 3+ authors in parentheses is in Handbook 6.5 (subscription-only). An 8th-ed. post shows '(Burdick et al. 42)'.", S["et_al_8th"])
         return "(" + "; ".join(out) + ")"
     text = re.sub(r"\(([^()]*)\)", repl, text)
     if text != orig: L.change("in-text-citation", orig, text, S["intext_qg"])

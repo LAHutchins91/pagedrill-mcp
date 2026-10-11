@@ -1,8 +1,11 @@
 """Check mla_after.docx against MLA 9 rules; write checklist_mla.md. Every rule cites the official MLA source it came from.
 Results: PASS / FAIL / FLAG (user-dependent or missing data) / NOT VERIFIED (official rule text not readable from free sources)."""
 import re, json, sys
+from pathlib import Path
 sys.path.insert(0, "src")
+sys.path.insert(0, str(Path(__file__).resolve().parents[3] / "engine"))
 from fmtlib import *
+from pagedrill import mla as mla_rules
 D = Document("mla_after.docx"); B = Document("mla_before.docx"); prof = json.load(open("profiles/mla9_paper.json")); S = prof["sources"]
 ch = json.load(open("mla_after_changes.json"))
 rows = []
@@ -39,7 +42,10 @@ row("Title centered on a new double-spaced line; not italic, underlined, bold, i
     title_p.alignment == 1 and not any(r.bold or r.italic or r.underline for r in title_p.runs) and not title_p.text.isupper() and not title_p.text.startswith(("\u201c", '"')))
 row("No period after the title or any heading (1.3)", S["ch1_3"], not title_p.text.endswith(".") and not any(h.text.endswith(".") for h in heads) and not ps[wc].text.endswith("."))
 row("Text begins on the next double-spaced line after the title, first line indented 0.5 in. (1.3)", S["ch1_3"], ps[5].text and ps[5].paragraph_format.first_line_indent == Inches(0.5))
-row("Title capitalization per Handbook 2.90", "MLA Handbook 2.90 (subscription-only; not read)", "NOT VERIFIED", "formatter keeps the typed capitalization; it never recases titles under this profile")
+row("Title capitalization per Handbook 2.90", "MLA Handbook, 9th ed., sec. 2.90",
+    title_p.text == "Reading, Writing, and the Screen" and mla_rules.title_case("reading, writing, and the screen") == title_p.text
+    and mla_rules.title_case("anti-slavery movements in the atlantic") == "Anti-slavery Movements in the Atlantic",
+    "paper title follows sec. 2.90; closed prefix Anti-slavery is the one transcribed example")
 row("Headings flush left, not indented or centered (1.5)", S["ch1_5"], all(h.alignment in (None, 0) and h.paragraph_format.first_line_indent in (None, 0) for h in heads))
 row("Each heading level styled consistently; same typeface/size as text; bold used for prominence (1.5, 1.2)", S["ch1_5"], len({(h.style.name, bool(h.runs[0].bold), eff(h.runs[0], h)) for h in heads}) == 1)
 row("Headings not numbered/lettered (\"generally avoid\") (1.5)", S["ch1_5"], not any(re.match(r"^\d+[.)]", h.text) for h in heads), "numbers removed and flagged: discipline/instructor may want them")
@@ -48,7 +54,10 @@ row("\"Include a line space above and below a heading\" (1.5)", S["ch1_5"], "FLA
 row("Works Cited at the end, new page, heading \"Works Cited\" centered 1 in. from top, no period (1.6, 1.3)", S["ch1_6"], is_break(ps[wc - 1]) and ps[wc].alignment == 1 and ps[wc].text == "Works Cited")
 row("Works-cited heading weight (bold vs plain)", S["ch1_6"], "FLAG", "1.6 text doesn't say; plain, as in MLA's published sample essays")
 row("Entries flush left with 0.5-in. hanging indent; list double-spaced (1.6)", S["ch1_6"], all(p.paragraph_format.left_indent == Inches(0.5) and p.paragraph_format.first_line_indent == -Inches(0.5) for p in refs))
-row("List is alphabetical (1.6)", S["ch1_6"], [p.text.split(",")[0] for p in refs] == sorted(p.text.split(",")[0] for p in refs), " < ".join(p.text.split(",")[0] for p in refs) + "; letter-by-letter/article rules are 8th-ed. only (" + S["alpha_8th"] + ")")
+_fixture_ok = list(mla_rules.HANDBOOK_5_124_ORDER) == sorted(mla_rules.HANDBOOK_5_124_ORDER, key=mla_rules.alphabetize_key)
+row("List is alphabetical (1.6)", "MLA Handbook, 9th ed., secs. 5.123–5.127",
+    [p.text.split(",")[0] for p in refs] == ["Adams", "Baron", "Berman", "Mantel"] and _fixture_ok,
+    " < ".join(p.text.split(",")[0] for p in refs) + "; sec. 5.124 letter-by-letter fixture sorts; secs. 5.128–5.130 still unread")
 OFFICIAL = {
  "Adams": ("Adams, Peter, et al. \u201cThe Accelerated Learning Program: Throwing Open the Gates.\u201d Journal of Basic Writing, vol. 28, no. 2, fall 2009, pp. 50\u201369.", S["closer_look"]),
  "Baron": ("Baron, Naomi S. \u201cRedefining Reading: The Impact of Digital Communication Media.\u201d PMLA, vol. 128, no. 1, Jan. 2013, pp. 193\u2013200.", S["intext_qg"]),
@@ -65,16 +74,41 @@ row("DOI written as https://doi.org/... (5.93)", S["closer_look"], "https://doi.
 row("Months longer than four letters abbreviated in entries (Appendix 1)", S["closer_look"], "Jan. 2013" in ref["Baron"].text)
 row("Season in a publication date lowercased (5.79)", S["closer_look"], "fall 2009" in ref["Adams"].text)
 row("Page ranges with en dash; \"pp.\" before the range (9th-ed. examples)", S["intext_qg"], all("\u2013" in p.text and "pp." in p.text for p in refs if "vol." in p.text), "grade E9")
-row("Shortening of page/number ranges (Handbook 2.139)", "MLA Handbook 2.139 (subscription-only; not read)", "NOT VERIFIED", "kept in full; no range in this sample would be shortened (193\u2013200, 11\u201314, 50\u201369), so output is unaffected")
-row("Three or more authors: first author, then \"et al.\" (Handbook 5.3-5.22)", S["closer_look"], "NOT VERIFIED", "output matches the 9th-ed. example 'Adams, Peter, et al.'; rule text only in an 8th-ed. post (" + S["et_al_8th"] + ")")
-row("Two authors: \"Surname, Given, and Given Surname.\" (Handbook 5.3-5.22)", S["two_authors_8th"], "NOT VERIFIED", "not used in this sample; implemented from an 8th-ed. post and flagged whenever it fires")
+_ranges_ok = all(mla_rules.shorten_range(src) == exp for src, exp in mla_rules.RANGE_EXAMPLES.items())
+row("Shortening of page/number ranges (Handbook 2.139)", "MLA Handbook, 9th ed., sec. 2.139",
+    _ranges_ok and "193\u2013200" in ref["Baron"].text and "11\u201314" in ref["Berman"].text and "50\u201369" in ref["Adams"].text,
+    "sample ranges stay in full under 2.139 (193–200, 11–14, 50–69); handbook examples including 103–04 and 1,608–774 are checked in the formatter")
+row("Three or more authors: first author, then \"et al.\" (Handbook 5.8)", "MLA Handbook, 9th ed., sec. 5.8",
+    ref["Adams"].text.startswith("Adams, Peter, et al.") and mla_rules.works_cited_authors([{"family": "Charon", "given": "Rita"}], et_al=True) == "Charon, Rita, et al.",
+    "Works Cited uses the first author, then et al.; et al. is not italicized")
+_two = mla_rules.works_cited_authors([{"family": "Dorris", "given": "Michael"}, {"family": "Erdrich", "given": "Louise"}])
+_editors = mla_rules.works_cited_authors([{"family": "Gilbert", "given": "Sandra M."}, {"family": "Gubar", "given": "Susan"}], role="editors")
+row("Two authors: \"Surname, Given, and Given Surname.\" (Handbook 5.7)", "MLA Handbook, 9th ed., sec. 5.7",
+    _two == "Dorris, Michael, and Louise Erdrich." and _editors == "Gilbert, Sandra M., and Susan Gubar, editors.",
+    "not used in this sample; checked against the transcribed 5.7 examples")
 txt = " ".join(p.text for p in body)
 row("In-text citation = first element of the entry (author) + location; no year; no \"p.\" (Quick Guide 2024)", S["intext_qg"],
     "(Mantel)" in txt and "(Baron)" in txt and "2010)" not in txt and "p. " not in txt and "(Berman 12; Baron 196)" in txt)
 row("Author named in the prose: location only in parentheses; never the name in both (Quick Guide 2024; overview)", S["intext_overview"], "writing\u201d (194)." in txt)
 row("More than one source in one parenthesis separated by semicolons (6.30)", S["closer_look"], "(Berman 12; Baron 196)" in txt)
-row("\"et al.\" in parenthetical citations (Handbook 6.5)", S["et_al_8th"], "NOT VERIFIED", "'(Adams et al.)' kept as the student typed it; 9th-ed. rule text not read")
-row("Titles of works italicized in prose (Handbook 2.89-2.125)", "MLA Handbook 2.89-2.125 (subscription-only)", "NOT VERIFIED", "italics kept exactly as typed (Wolf Hall was already italic)")
+_in_two, _ = mla_rules.in_text([{"family": "Lemery", "given": "A"}, {"family": "Auerbach", "given": "B"}], "4-5")
+_in_many, _ = mla_rules.in_text([{"family": "Nickerson", "given": "A"}, {"family": "B", "given": "B"}, {"family": "C", "given": "C"}], "135")
+row("\"et al.\" in parenthetical citations (Handbook 6.5)", "MLA Handbook, 9th ed., sec. 6.5",
+    "(Adams et al.)" in txt and _in_two == "(Lemery and Auerbach 4\u20135)" and _in_many == "(Nickerson et al. 135)",
+    "two authors joined by and; three or more use the first surname and et al.")
+row("Titles of works italicized in prose (Handbook 2.89-2.125)", "MLA Handbook, 9th ed., secs. 2.89–2.125 (not transcribed)", "NOT VERIFIED",
+    "those sections were not in the transcribed pages; italics in the prose stay as typed (Wolf Hall was already italic). Sec. 2.90 covers capitalization only")
+_entry_ok = all(p.text.endswith(".") for p in refs) and "https://doi.org/10.1632/adfl.43.2.11." in ref["Berman"].text
+row("Entry punctuation: period after author, title, and entry; commas inside the container (5.120-5.122)", "MLA Handbook, 9th ed., secs. 5.120–5.122",
+    _entry_ok and mla_rules.format_url("https://www.jstor.org/stable/40859548") == "www.jstor.org/stable/40859548",
+    "sample entries end with a period; a DOI keeps https://doi.org/; an ordinary URL drops https://")
+_many = [
+    {"authors": [{"family": "Adams", "given": "Peter"}, {"family": "Lee", "given": "Ann"}, {"family": "Ng", "given": "Kim"}], "title": "B Work", "type": "book", "publisher": "X", "year": "2000"},
+    {"authors": [{"family": "Adams", "given": "Peter"}, {"family": "Zoe", "given": "Ann"}], "title": "A Work", "type": "book", "publisher": "X", "year": "2001"},
+]
+_many_lines, _many_flags = mla_rules.render_works_cited(_many)
+row("Ordering entries with more than two authors (5.128-5.130)", "MLA Handbook, 9th ed., secs. 5.128–5.130 (not transcribed)", "NOT VERIFIED",
+    "not inferred; a tie with a three-author entry is flagged and left in typed order" if _many_flags and _many_lines[0].startswith("Adams, Peter, et al. B Work") else "formatter did not flag the unread case")
 # words-preserved check (body sentences only)
 bb = " ".join(p.text for p in B.paragraphs if p.text and not p.style.name.startswith("Heading") and not re.match(r"^(Date|Student|Course|Instructor):", p.text)
              and p.text not in ("Reading, Writing, and the Screen.", "Bibliography") and not p.text.startswith(("Hilary", "Baron, Naomi", "Berman, R", "Peter Adams")))
@@ -84,12 +118,12 @@ row("Author's sentences unchanged (only citation contents and spacing change)", 
     {x[2:] for x in dif} <= {",", "p", ".", "2010", "2013", "2009", "Baron", ";"}, "word-level diff: " + " ".join(dif))
 with open("checklist_mla.md", "w") as f:
     f.write("# MLA 9 student research paper — rule checklist for mla_after.docx\n\nGenerated by `src/verify_mla.py` (programmatic checks on the .docx XML). Sources fetched 2026-10-10; copies in `mla_src/` (chapter 1 of the MLA Handbook is MLA's free sample chapter on mlahandbookplus.org, read via the fetch tool; the box itself gets a Cloudflare challenge there).\n\n"
-            "FLAG = user/instructor-dependent: the formatter refused to guess. NOT VERIFIED = the official 9th-ed. rule text is subscription-only (MLA Handbook Plus) or only exists in an MLA post written for the 8th edition.\n\n")
+            "FLAG = user/instructor-dependent: the formatter refused to guess. NOT VERIFIED = the 9th-ed. section was not in the transcribed pages from Lawrence's copy (research/mla_answers/).\n\n")
     f.write("| # | Rule | Official source | Result | Note |\n|---|---|---|---|---|\n")
     for r in rows: f.write(f"| {r[0]} | {r[1]} | {r[2]} | **{r[3]}** | {r[4]} |\n")
     c = {k: sum(1 for r in rows if r[3] == k) for k in ("PASS", "FAIL", "FLAG", "NOT VERIFIED")}
     f.write(f"\n**Totals:** {c['PASS']} pass, {c['FAIL']} fail, {c['FLAG']} flagged, {c['NOT VERIFIED']} not verified.\n\n")
-    f.write("**Status: NOT FULLY VERIFIED (not shippable as full MLA 9).** Page layout (Handbook ch. 1) is fully verified. Still missing, all subscription-only: 2.90 (title capitalization), 2.89-2.125 (titles in prose), 2.139 (number ranges), 5.3-5.22 (author element: two authors, et al.), 5.120-5.130 (entry punctuation, alphabetizing), 6.3-6.30 (in-text details: coauthors, corporate authors, same surname). Fix: buy the MLA Handbook 9th ed. (print/e-book) or an MLA Handbook Plus login and re-run this checklist.\n\n## Flags from the formatter\n")
+    f.write("**Status: NOT FULLY VERIFIED (not selectable).** Layout (ch. 1) and the transcribed citation sections are sourced: 2.90, 2.139, 5.7, 5.8, 5.89–5.91, 5.120–5.127, 6.5, 6.6, 6.28–6.30. Still missing: secs. 2.89–2.125 (titles italicized in prose) and secs. 5.128–5.130 (ordering entries with more than two authors). Those are not inferred. The profile stays hidden.\n\n## Flags from the formatter\n")
     for fl in ch["flags"]: f.write(f"- **{fl['item']}**: {fl['why']} ({fl['rule']})\n")
     f.write("\n## Logged changes (the diff the user approves before saving)\n")
     for x in ch["changes"]: f.write(f"- `{x['kind']}`: \u201c{x['before'][:150]}\u201d \u2192 \u201c{x['after'][:170]}\u201d\n")

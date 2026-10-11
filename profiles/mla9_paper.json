@@ -2,8 +2,9 @@
   "id": "mla9-research-paper",
   "name": "MLA Handbook, 9th edition \u2014 student research paper",
   "publisher": "Modern Language Association",
-  "status": "PARTIAL: layout verified from the Handbook's free chapter 1; citation rules only partly verifiable (chapters 2, 5, 6 are subscription-only)",
+  "status": "PARTIAL: layout and the transcribed citation sections are sourced; secs. 2.89-2.125 and 5.128-5.130 are not, so this style stays hidden",
   "verified_on": "",
+  "unsourced_sections": ["2.89-2.125", "5.128-5.130"],
   "grades": {
     "V9": "rule text read in the official 9th-ed. source",
     "E9": "attested only by official 9th-ed. examples (no rule text read)",
@@ -93,8 +94,8 @@
     "no_quotes": true,
     "no_all_caps": true,
     "no_period": true,
-    "capitalization": "2.90 (subscription-only) \u2014 not changed by the formatter",
-    "grade": "V9 (styling); M8 (capitalization)",
+    "capitalization": "MLA Handbook, 9th ed., sec. 2.90",
+    "grade": "V9",
     "src": "ch1_3"
   },
   "headings": {
@@ -133,12 +134,14 @@
       "grade": "E9"
     },
     "authors_two": {
-      "pattern": "Surname1, Given1, and Given2 Surname2.",
-      "grade": "M8"
+      "pattern": "Surname, Given, and Given Surname.",
+      "grade": "V9",
+      "src": "MLA Handbook, 9th ed., sec. 5.7"
     },
     "authors_three_plus": {
       "pattern": "Surname, Given, et al.",
-      "grade": "E9 (example: Adams, Peter, et al. in the 9th-ed. 'Closer Look' post); rule text M8"
+      "grade": "V9",
+      "src": "MLA Handbook, 9th ed., sec. 5.8"
     },
     "article_title": "in quotation marks, period inside",
     "container_italic": true,
@@ -174,18 +177,25 @@
     },
     "page_range_dash": {
       "value": "en dash",
-      "grade": "E9 (9th-ed. examples use en dashes; 8th-ed. post said hyphens)"
+      "grade": "V9",
+      "src": "MLA Handbook, 9th ed., sec. 2.139"
     },
     "page_range_abbreviation": {
-      "grade": "NOT VERIFIED (Handbook 2.139 is subscription-only) \u2014 numbers kept as typed, flagged if >99"
+      "grade": "V9",
+      "src": "MLA Handbook, 9th ed., secs. 2.139 and 5.89-5.91"
+    },
+    "punctuation": {
+      "grade": "V9",
+      "src": "MLA Handbook, 9th ed., secs. 5.120-5.122"
     },
     "publisher_up": {
       "grade": "V9",
       "src": "closer_look (5.65)"
     },
     "alphabetize_letter_by_letter_ignore_articles": {
-      "grade": "M8",
-      "src": "alpha_8th"
+      "grade": "V9",
+      "src": "MLA Handbook, 9th ed., secs. 5.123-5.127",
+      "more_than_two_authors": "NOT VERIFIED: secs. 5.128-5.130 were not transcribed; that tie is flagged and left in typed order"
     }
   },
   "in_text": {
@@ -194,9 +204,11 @@
     "author_in_prose_then_page_only": true,
     "multiple_sources_semicolon": true,
     "no_year": true,
-    "grade": "V9 (QG 2024, overview 2021, Closer Look 6.30)",
-    "et_al_in_parentheses": "M8",
-    "two_authors": "NOT VERIFIED (QG: 'see the MLA Handbook')"
+    "grade": "V9",
+    "et_al_in_parentheses": "MLA Handbook, 9th ed., sec. 6.5",
+    "two_authors": "MLA Handbook, 9th ed., sec. 6.5",
+    "corporate": "MLA Handbook, 9th ed., sec. 6.6 (leading article dropped; shortest-noun-phrase examples were not transcribed)",
+    "details": "MLA Handbook, 9th ed., secs. 6.28-6.30"
   },
   "engine": "mla",
   "checklist_verified": false,
