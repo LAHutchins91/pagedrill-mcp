@@ -57,7 +57,7 @@ row("Entries flush left with 0.5-in. hanging indent; list double-spaced (1.6)", 
 _fixture_ok = list(mla_rules.HANDBOOK_5_124_ORDER) == sorted(mla_rules.HANDBOOK_5_124_ORDER, key=mla_rules.alphabetize_key)
 row("List is alphabetical (1.6)", "MLA Handbook, 9th ed., secs. 5.123–5.127",
     [p.text.split(",")[0] for p in refs] == ["Adams", "Baron", "Berman", "Mantel"] and _fixture_ok,
-    " < ".join(p.text.split(",")[0] for p in refs) + "; sec. 5.124 letter-by-letter fixture sorts; secs. 5.128–5.130 still unread")
+    " < ".join(p.text.split(",")[0] for p in refs) + "; sec. 5.124 letter-by-letter fixture sorts; secs. 5.128–5.130 are checked on their own row")
 OFFICIAL = {
  "Adams": ("Adams, Peter, et al. \u201cThe Accelerated Learning Program: Throwing Open the Gates.\u201d Journal of Basic Writing, vol. 28, no. 2, fall 2009, pp. 50\u201369.", S["closer_look"]),
  "Baron": ("Baron, Naomi S. \u201cRedefining Reading: The Impact of Digital Communication Media.\u201d PMLA, vol. 128, no. 1, Jan. 2013, pp. 193\u2013200.", S["intext_qg"]),
@@ -102,13 +102,37 @@ _entry_ok = all(p.text.endswith(".") for p in refs) and "https://doi.org/10.1632
 row("Entry punctuation: period after author, title, and entry; commas inside the container (5.120-5.122)", "MLA Handbook, 9th ed., secs. 5.120–5.122",
     _entry_ok and mla_rules.format_url("https://www.jstor.org/stable/40859548") == "www.jstor.org/stable/40859548",
     "sample entries end with a period; a DOI keeps https://doi.org/; an ordinary URL drops https://")
-_many = [
-    {"authors": [{"family": "Adams", "given": "Peter"}, {"family": "Lee", "given": "Ann"}, {"family": "Ng", "given": "Kim"}], "title": "B Work", "type": "book", "publisher": "X", "year": "2000"},
-    {"authors": [{"family": "Adams", "given": "Peter"}, {"family": "Zoe", "given": "Ann"}], "title": "A Work", "type": "book", "publisher": "X", "year": "2001"},
-]
-_many_lines, _many_flags = mla_rules.render_works_cited(_many)
-row("Ordering entries with more than two authors (5.128-5.130)", "MLA Handbook, 9th ed., secs. 5.128–5.130 (not transcribed)", "NOT VERIFIED",
-    "not inferred; a tie with a three-author entry is flagged and left in typed order" if _many_flags and _many_lines[0].startswith("Adams, Peter, et al. B Work") else "formatter did not flag the unread case")
+_perry_title = "Introduction to Philosophy: Classical and Contemporary Readings"
+_perry_team = [{"family": "Perry", "given": "John"}, {"family": "Bratman", "given": "Michael"}, {"family": "Fischer", "given": "John Martin"}]
+_perry_lines, _perry_flags = mla_rules.render_works_cited([
+    {"authors": list(_perry_team), "et_al": True, "title": _perry_title, "type": "book", "edition": "8th ed.", "publisher": "Oxford UP", "year": "2018"},
+    {"authors": list(_perry_team), "et_al": True, "title": _perry_title, "type": "book", "edition": "7th ed.", "publisher": "Oxford UP", "year": "2015"},
+])
+_horner_lines, _horner_flags = mla_rules.render_works_cited([
+    {"authors": [{"family": "Horner", "given": "Bruce"}, {"family": "Lu", "given": "Min-Zhan"}, {"family": "Royster", "given": "Jacqueline Jones"}],
+     "et_al": True, "title": "Language Difference in Writing: Toward a Translingual Approach",
+     "container": "College English", "volume": "73", "issue": "3", "month": "Jan.", "year": "2011", "pages": "304-21"},
+    {"authors": [{"family": "Horner", "given": "Bruce"}, {"family": "Other", "given": "Alex"}, {"family": "Team", "given": "Sam"}],
+     "et_al": True, "role": "editors", "title": "Cross-Language Relations in Composition", "type": "book", "publisher": "Southern Illinois UP", "year": "2010"},
+])
+_title_order = sorted(
+    ["The Guns of August", "1914: An Anonymous Diary on the Eve of World War I", "The Representation of War in German Literature",
+     "Henry V", "Henry IV", "Star Trek III: The Search for Spock", "Star Trek II: The Wrath of Khan"],
+    key=mla_rules.title_sort_parts,
+)
+_order_ok = (
+    _perry_flags == [] and _horner_flags == []
+    and _perry_lines[0].startswith("Perry, John, et al. " + _perry_title + ". 7th ed., Oxford UP, 2015.")
+    and _perry_lines[1].startswith(mla_rules.EM_DASHES + ". " + _perry_title + ". 8th ed., Oxford UP, 2018.")
+    and _horner_lines[0].startswith("Horner, Bruce, et al., editors. Cross-Language Relations in Composition.")
+    and _horner_lines[1].startswith("Horner, Bruce, et al. \u201cLanguage Difference in Writing:")
+    and mla_rules.EM_DASHES not in " ".join(_horner_lines)
+    and _title_order.index("The Guns of August") < _title_order.index("1914: An Anonymous Diary on the Eve of World War I") < _title_order.index("The Representation of War in German Literature")
+    and _title_order.index("Henry IV") < _title_order.index("Henry V")
+    and _title_order.index("Star Trek II: The Wrath of Khan") < _title_order.index("Star Trek III: The Search for Spock")
+)
+row("Ordering entries with more than two authors (5.128-5.130)", "MLA Handbook, 9th ed., secs. 5.128–5.130", _order_ok,
+    "same coauthors dash and stay chronological; a different team repeats et al. and sorts by title; 1914, Henry IV, and Star Trek II keep the transcribed order")
 # words-preserved check (body sentences only)
 bb = " ".join(p.text for p in B.paragraphs if p.text and not p.style.name.startswith("Heading") and not re.match(r"^(Date|Student|Course|Instructor):", p.text)
              and p.text not in ("Reading, Writing, and the Screen.", "Bibliography") and not p.text.startswith(("Hilary", "Baron, Naomi", "Berman, R", "Peter Adams")))
@@ -123,7 +147,7 @@ with open("checklist_mla.md", "w") as f:
     for r in rows: f.write(f"| {r[0]} | {r[1]} | {r[2]} | **{r[3]}** | {r[4]} |\n")
     c = {k: sum(1 for r in rows if r[3] == k) for k in ("PASS", "FAIL", "FLAG", "NOT VERIFIED")}
     f.write(f"\n**Totals:** {c['PASS']} pass, {c['FAIL']} fail, {c['FLAG']} flagged, {c['NOT VERIFIED']} not verified.\n\n")
-    f.write("**Status: NOT FULLY VERIFIED (not selectable).** Layout (ch. 1) and the transcribed citation sections are sourced: 2.90, 2.139, 5.7, 5.8, 5.89–5.91, 5.120–5.127, 6.5, 6.6, 6.28–6.30. Still missing: secs. 2.89–2.125 (titles italicized in prose) and secs. 5.128–5.130 (ordering entries with more than two authors). Those are not inferred. The profile stays hidden.\n\n## Flags from the formatter\n")
+    f.write("**Status: NOT FULLY VERIFIED (not selectable).** Layout (ch. 1) and the transcribed citation sections are sourced: 2.90, 2.139, 5.7, 5.8, 5.89–5.91, 5.120–5.130, 6.5, 6.6, 6.28–6.30. Still missing: secs. 2.89–2.125 (titles italicized in prose). That gap is not inferred. The profile stays hidden.\n\n## Flags from the formatter\n")
     for fl in ch["flags"]: f.write(f"- **{fl['item']}**: {fl['why']} ({fl['rule']})\n")
     f.write("\n## Logged changes (the diff the user approves before saving)\n")
     for x in ch["changes"]: f.write(f"- `{x['kind']}`: \u201c{x['before'][:150]}\u201d \u2192 \u201c{x['after'][:170]}\u201d\n")

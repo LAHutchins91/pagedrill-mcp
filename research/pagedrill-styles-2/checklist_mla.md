@@ -28,7 +28,7 @@ FLAG = user/instructor-dependent: the formatter refused to guess. NOT VERIFIED =
 | 20 | Works Cited at the end, new page, heading "Works Cited" centered 1 in. from top, no period (1.6, 1.3) | https://mlahandbookplus.org/books/book/5/chapter/56272/Placement-of-the-List-of-Works-Cited | **PASS** |  |
 | 21 | Works-cited heading weight (bold vs plain) | https://mlahandbookplus.org/books/book/5/chapter/56272/Placement-of-the-List-of-Works-Cited | **FLAG** | 1.6 text doesn't say; plain, as in MLA's published sample essays |
 | 22 | Entries flush left with 0.5-in. hanging indent; list double-spaced (1.6) | https://mlahandbookplus.org/books/book/5/chapter/56272/Placement-of-the-List-of-Works-Cited | **PASS** |  |
-| 23 | List is alphabetical (1.6) | MLA Handbook, 9th ed., secs. 5.123–5.127 | **PASS** | Adams < Baron < Berman < Mantel; sec. 5.124 letter-by-letter fixture sorts; secs. 5.128–5.130 still unread |
+| 23 | List is alphabetical (1.6) | MLA Handbook, 9th ed., secs. 5.123–5.127 | **PASS** | Adams < Baron < Berman < Mantel; sec. 5.124 letter-by-letter fixture sorts; secs. 5.128–5.130 are checked on their own row |
 | 24 | Each entry identical, character for character, to the MLA's own 9th-ed. published example of the same work | https://mlahandbookplus.org/DocumentLibrary/QuickGuide_MLA%20In-Text%20Citations_5-24-24.pdf; https://style.mla.org/ (Citations by Format quick guide; copy in mla_src/citations-quick.txt); https://style.mla.org/closer-look-at-mla-style/ | **PASS** | Adams: match; Baron: match; Berman: match; Mantel: match |
 | 25 | Container (journal) and book titles italic; article titles in quotation marks, not italic (template examples) | https://mlahandbookplus.org/DocumentLibrary/QuickGuide_MLA%20In-Text%20Citations_5-24-24.pdf | **PASS** | grade E9: shown in 9th-ed. examples; rule text in Handbook 5.23-5.37 |
 | 26 | DOI written as https://doi.org/... (5.93) | https://style.mla.org/closer-look-at-mla-style/ | **PASS** |  |
@@ -44,12 +44,12 @@ FLAG = user/instructor-dependent: the formatter refused to guess. NOT VERIFIED =
 | 36 | "et al." in parenthetical citations (Handbook 6.5) | MLA Handbook, 9th ed., sec. 6.5 | **PASS** | two authors joined by and; three or more use the first surname and et al. |
 | 37 | Titles of works italicized in prose (Handbook 2.89-2.125) | MLA Handbook, 9th ed., secs. 2.89–2.125 (not transcribed) | **NOT VERIFIED** | those sections were not in the transcribed pages; italics in the prose stay as typed (Wolf Hall was already italic). Sec. 2.90 covers capitalization only |
 | 38 | Entry punctuation: period after author, title, and entry; commas inside the container (5.120-5.122) | MLA Handbook, 9th ed., secs. 5.120–5.122 | **PASS** | sample entries end with a period; a DOI keeps https://doi.org/; an ordinary URL drops https:// |
-| 39 | Ordering entries with more than two authors (5.128-5.130) | MLA Handbook, 9th ed., secs. 5.128–5.130 (not transcribed) | **NOT VERIFIED** | not inferred; a tie with a three-author entry is flagged and left in typed order |
+| 39 | Ordering entries with more than two authors (5.128-5.130) | MLA Handbook, 9th ed., secs. 5.128–5.130 | **PASS** | same coauthors dash and stay chronological; a different team repeats et al. and sorts by title; 1914, Henry IV, and Star Trek II keep the transcribed order |
 | 40 | Author's sentences unchanged (only citation contents and spacing change) | (Lawrence's rule: format only) | **PASS** | word-level diff: - Baron - , - p - . - , - 2010 - 2013 - , - 2009 - , + ; |
 
-**Totals:** 35 pass, 0 fail, 3 flagged, 2 not verified.
+**Totals:** 36 pass, 0 fail, 3 flagged, 1 not verified.
 
-**Status: NOT FULLY VERIFIED (not selectable).** Layout (ch. 1) and the transcribed citation sections are sourced: 2.90, 2.139, 5.7, 5.8, 5.89–5.91, 5.120–5.127, 6.5, 6.6, 6.28–6.30. Still missing: secs. 2.89–2.125 (titles italicized in prose) and secs. 5.128–5.130 (ordering entries with more than two authors). Those are not inferred. The profile stays hidden.
+**Status: NOT FULLY VERIFIED (not selectable).** Layout (ch. 1) and the transcribed citation sections are sourced: 2.90, 2.139, 5.7, 5.8, 5.89–5.91, 5.120–5.130, 6.5, 6.6, 6.28–6.30. Still missing: secs. 2.89–2.125 (titles italicized in prose). That gap is not inferred. The profile stays hidden.
 
 ## Flags from the formatter
 - **Heading "1. Reading on Screens"**: Number removed: MLA 1.5 says generally avoid numbers/letters on headings unless your discipline uses them. Put them back if your instructor wants numbered sections. (https://mlahandbookplus.org/books/book/5/chapter/56264/Internal-Headings-and-Subheadings)

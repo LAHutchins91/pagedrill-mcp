@@ -13,7 +13,7 @@ Support: [ouroborosplugins@gmail.com](mailto:ouroborosplugins@gmail.com)
 | Army memorandum, AR 25-50 | yes | 20 pass, 0 fail, 4 flagged |
 | IEEE conference paper, US letter | yes | 28 pass, 0 fail, 7 flagged |
 | Vancouver (ICMJE + NLM) | yes | 12 pass, 0 fail, 5 flagged |
-| MLA 9 | no | loaded and hidden. Transcribed Handbook sections are implemented; secs. 2.89–2.125 and 5.128–5.130 are still unread, so the style stays refused |
+| MLA 9 | no | loaded and hidden. Transcribed Handbook sections through 5.130 are implemented; secs. 2.89–2.125 are still unread, so the style stays refused |
 
 Flagged on the APA student sample, by design: affiliation, course name, a single subsection, Toner's missing date, Sanchiz's missing DOI and issue, and the Toner citation without a year. Nothing in those fields is looked up or invented.
 
@@ -60,4 +60,4 @@ The container image is `Dockerfile`. It is not deployed by this repository's tes
 
 ## Research
 
-`research/pagedrill-seed/` is the preserved seed archive: checklists, `sources.md`, profiles, prototype scripts, and samples. `research/pagedrill-styles-2/` is the follow-up archive, including the IEEE and Vancouver checklists and `comparison.md`. Citing Medicine Chapter 1 (NBK7282) and Chapter 2 (NBK7271) are the browser print-PDFs in `research/vanc_src/citing_medicine/`. MLA Handbook notes and page images are in `research/mla_answers/`. `research/archives/` holds the archive files themselves. MLA 9 stays hidden because secs. 2.89–2.125 and 5.128–5.130 were not transcribed.
+`research/pagedrill-seed/` is the preserved seed archive: checklists, `sources.md`, profiles, prototype scripts, and samples. `research/pagedrill-styles-2/` is the follow-up archive, including the IEEE and Vancouver checklists and `comparison.md`. Citing Medicine Chapter 1 (NBK7282) and Chapter 2 (NBK7271) are the browser print-PDFs in `research/vanc_src/citing_medicine/`. MLA Handbook notes and page images are in `research/mla_answers/`. `research/archives/` holds the archive files themselves. MLA 9 stays hidden because secs. 2.89–2.125 were not transcribed.

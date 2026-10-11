@@ -48,3 +48,9 @@ Screenshots: 21ca51bf*.png, 470f3f40*.png, 058ed815*.png
 - 5.127: coauthor entries starting with same name ordered by second author's surname (Scholes and Kellogg before Scholes and Rabkin). Same coauthors same order: three em dashes stand for all names.
 - 5.128–5.130 (more than two authors) NOT CAPTURED: needs one more screenshot. Do not infer.
 Screenshots: 9384779f, 30cf7496, a2992ea1, e5a38492, 2b176b95, 33180273, 8d42eb01, 36a217ad. Index: et al. at 5.8, 5.46, 5.128–5.130, 6.5, 6.8, 7.2, app. 1.
+
+## Q5b Secs. 5.127 (end), 5.128–5.130 (29ae1b9b, 4513f497, 1dc3fea5, 2832e8ab)
+- 5.127 end: coauthor names in different order across works: record as found and alphabetize accordingly.
+- 5.128: same lead author AND same coauthors in same order: "Lead, First, et al." in first entry, then three em dashes (or hyphens). Same lead but different coauthors or different order: NO dashes; each entry repeats "Lead, First, et al.", alphabetized by title.
+- 5.129: single author plus coauthored works: solo works first (dashes OK between solo works); then coauthored works with the single author's name repeated in full (no dashes), ordered by first unique coauthor's surname as listed; two-author works before 3+ author works. Ex order: Tannen solo / ——— solo / Tannen and Freedle / Tannen and Saville-Troike / Tannen et al. (see 6.8 for citing).
+- 5.130: alphabetize by title when no author; multiple works same author (5.126); same coauthors same order (5.127); same lead + et al. (5.128). Same title: chronological, either direction, consistently. Titles letter by letter ignoring initial A/An/The or foreign equivalents (An Encyclopedia… under E; Le théâtre… under T); use the first word if the language is unfamiliar. Titles starting with a numeral sort as if spelled out (1914 = Nineteen Fourteen, between The Guns of August and The Representation…). Exception: numbered sequences keep order (Henry IV before Henry V; Star Trek II before III).

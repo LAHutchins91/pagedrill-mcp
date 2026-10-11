@@ -2,8 +2,8 @@
   "id": "mla9-research-paper",
   "name": "MLA Handbook, 9th edition — student research paper",
   "publisher": "Modern Language Association",
-  "status": "PARTIAL: layout and the transcribed citation sections are sourced; secs. 2.89-2.125 and 5.128-5.130 are not",
-  "unsourced_sections": ["2.89-2.125", "5.128-5.130"],
+  "status": "PARTIAL: layout and the transcribed citation sections are sourced; sec. 2.89-2.125 is not",
+  "unsourced_sections": ["2.89-2.125"],
   "verified_on": "2026-10-10",
   "grades": {"V9": "rule text read in the official 9th-ed. source", "E9": "attested only by official 9th-ed. examples (no rule text read)", "M8": "rule text only in an MLA post marked 'relates to the 8th edition' (NOT verified for 9th)", "U": "instructor/user-dependent (flag, never guess)"},
   "sources": {
@@ -42,7 +42,7 @@
     "page_range_abbreviation": {"grade": "V9", "src": "MLA Handbook, 9th ed., secs. 2.139 and 5.89-5.91"},
     "punctuation": {"grade": "V9", "src": "MLA Handbook, 9th ed., secs. 5.120-5.122"},
     "publisher_up": {"grade": "V9", "src": "closer_look (5.65)"},
-    "alphabetize_letter_by_letter_ignore_articles": {"grade": "V9", "src": "MLA Handbook, 9th ed., secs. 5.123-5.127", "more_than_two_authors": "NOT VERIFIED: secs. 5.128-5.130"}
+    "alphabetize_letter_by_letter_ignore_articles": {"grade": "V9", "src": "MLA Handbook, 9th ed., secs. 5.123-5.130", "more_than_two_authors": "MLA Handbook, 9th ed., secs. 5.128-5.130"}
   },
   "in_text": {"author_page": "(Surname page)", "no_p": true, "author_in_prose_then_page_only": true, "multiple_sources_semicolon": true, "no_year": true,
               "grade": "V9", "et_al_in_parentheses": "MLA Handbook, 9th ed., sec. 6.5", "two_authors": "MLA Handbook, 9th ed., sec. 6.5", "corporate": "MLA Handbook, 9th ed., sec. 6.6", "details": "MLA Handbook, 9th ed., secs. 6.28-6.30"}

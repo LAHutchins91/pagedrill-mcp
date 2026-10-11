@@ -1,7 +1,7 @@
-"""MLA Handbook, 9th ed. citation mechanics that were transcribed from a print copy.
+"""MLA Handbook, 9th ed. citation mechanics transcribed from a print copy.
 
-Sections implemented: 2.90, 2.139, 5.7, 5.8, 5.89–5.91, 5.120–5.122, 5.123–5.127, 6.5, 6.6, 6.28–6.30.
-Sections 2.89–2.125 (italics of titles in prose) and 5.128–5.130 (order of entries with more than two authors) were not transcribed. Those cases are flagged, not guessed.
+Sections implemented: 2.90, 2.139, 5.7, 5.8, 5.89–5.91, 5.120–5.130, 6.5, 6.6, 6.28–6.30.
+Secs. 2.89–2.125 (italics of titles in prose) were not transcribed. Italics in the prose stay as typed.
 """
 
 from __future__ import annotations
@@ -13,8 +13,8 @@ EN = "\u2013"
 EM_DASHES = "\u2014\u2014\u2014"
 CITE = "MLA Handbook, 9th ed., sec. {section}"
 
-# Still unread. Do not invent rules for these.
-UNSOURCED_SECTIONS = ("2.89–2.125", "5.128–5.130")
+# Still unread. Do not invent an italics-in-prose rule.
+UNSOURCED_SECTIONS = ("2.89–2.125",)
 
 # 2.90. Mid-title words that stay lowercase. "as" is also listed as a subordinating
 # conjunction; alone, the lowercase preposition list is what the transcription gives
@@ -240,7 +240,10 @@ def works_cited_authors(authors: list[dict], role: str | None = None, *, et_al: 
     if not authors:
         return ""
     if et_al or len(authors) >= 3:
-        return f"{_inverted(authors[0])}, et al."
+        base = f"{_inverted(authors[0])}, et al."
+        if role:
+            return f"{base}, {role}."
+        return base
     if len(authors) == 2:
         first, second = authors
         base = f"{_inverted(first)}, and {second['given'].strip()} {second['family'].strip()}"
@@ -378,7 +381,8 @@ def format_works_cited_entry(entry: dict, *, byline: str | None = None) -> str:
     if entry.get("type") == "book" or (not entry.get("container") and entry.get("publisher")):
         publisher = entry.get("publisher") or ""
         year = str(entry.get("year") or "")
-        tail = ", ".join(part for part in (publisher, year) if part)
+        edition = str(entry.get("edition") or "")
+        tail = ", ".join(part for part in (edition, publisher, year) if part)
         return f"{authors} {title}. {tail}."
     article = title if title[-1:] in "?!." else title + "."
     bits = []
@@ -404,11 +408,10 @@ def format_works_cited_entry(entry: dict, *, byline: str | None = None) -> str:
 
 
 def repeat_byline(entry: dict, previous: tuple | None) -> tuple[str, tuple]:
-    """Secs. 5.126–5.127. Later works by the same name or the same coauthors use three em dashes."""
+    """Secs. 5.126–5.129. Dashes only when the names, and their order, match the previous entry."""
     signature = _signature(entry)
     role = entry.get("role")
-    # Secs. 5.126–5.127 cover one author and a pair. Dashes for three or more authors are in the unread sections.
-    if previous == signature and signature and not _many_authors(entry):
+    if previous == signature and signature and signature[0] != "etal-unlisted":
         if role:
             return f"{EM_DASHES}, {role}.", signature
         return f"{EM_DASHES}.", signature
@@ -421,51 +424,48 @@ def alphabetize_key(label: str) -> tuple[str, str]:
     if "," in text:
         head, tail = text.split(",", 1)
         return _letters(head), _letters(tail)
-    words = text.split()
-    if words and words[0].lower() in {"a", "an", "the"}:
-        text = " ".join(words[1:])
-    return _letters(text), ""
+    stripped = _strip_initial_article(text)
+    return _letters(_spell_leading_numeral(stripped)), ""
+
+
+def title_sort_parts(title: str) -> tuple[str, int, str]:
+    """Sec. 5.130. Ignore an initial article, spell a leading numeral, keep a numbered sequence in order."""
+    text = _strip_initial_article(title.strip())
+    spelled = _spell_leading_numeral(text)
+    if spelled != text:
+        return _letters(spelled), 0, ""
+    match = re.match(r"^(?P<stem>.+?)\s+(?P<roman>[IVXLCDM]+)\b(?P<rest>.*)$", text)
+    if match and match.group("roman").upper() in _ROMAN_VALUES and re.search(r"[A-Za-z]", match.group("stem")):
+        return (
+            _letters(match.group("stem")),
+            _ROMAN_VALUES[match.group("roman").upper()],
+            _letters(match.group("rest")),
+        )
+    return _letters(text), 0, ""
 
 
 def sort_entries(entries: list[dict]) -> tuple[list[dict], list[dict]]:
-    """Order by 5.123–5.127. A tie that needs 5.128–5.130 is flagged and left in input order."""
-    flagged: list[dict] = []
-    families: dict[str, list[tuple[int, dict]]] = {}
-    loose: list[tuple[str, int, dict]] = []
-    for index, entry in enumerate(entries):
+    """Secs. 5.123–5.130. Solo works, then pairs, then et al.; same title goes earliest to latest."""
+    families: dict[str, list[dict]] = {}
+    loose: list[dict] = []
+    for entry in entries:
         authors = entry.get("authors") or []
         if not authors:
-            loose.append((alphabetize_key(entry.get("title") or "")[0], index, entry))
+            loose.append(entry)
             continue
-        family = _letters(authors[0]["family"])
-        families.setdefault(family, []).append((index, entry))
-    blocks: list[tuple[str, list[dict]]] = []
+        families.setdefault(_letters(authors[0]["family"]), []).append(entry)
+    blocks: list[tuple[tuple, list[dict]]] = []
     for family, group in families.items():
-        many = [entry for _, entry in group if _many_authors(entry)]
-        if many and len(group) > 1:
-            flagged.append(
-                {
-                    "item": family,
-                    "why": (
-                        "These entries share a first author and at least one has more than two authors. "
-                        "Secs. 5.128–5.130 were not transcribed, so that tie was left in the order typed."
-                    ),
-                    "rule": cite("5.128–5.130"),
-                }
-            )
-            blocks.append((family, [entry for _, entry in group]))
-        else:
-            ordered = sorted(group, key=lambda pair: _tail_key(pair[1]))
-            blocks.append((family, [entry for _, entry in ordered]))
-    for key, index, entry in loose:
-        blocks.append((key, [entry]))
+        blocks.append(((family, 0, "", 0), sorted(group, key=_within_author_key)))
+    for entry in loose:
+        letters, seq, rest = title_sort_parts(entry.get("title") or "")
+        blocks.append(((letters, seq, rest, _year_number(entry)), [entry]))
     blocks.sort(key=lambda block: block[0])
-    ordered = [entry for _, group in blocks for entry in group]
-    return ordered, flagged
+    return [entry for _, group in blocks for entry in group], []
 
 
 def render_works_cited(entries: list[dict]) -> tuple[list[str], list[dict]]:
-    """Sort, flag unread multi-author ties, and apply repeat-author dashes."""
+    """Sort and apply repeat-author dashes. Secs. 5.126–5.130."""
     ordered, flags = sort_entries(entries)
     lines = []
     previous = None
@@ -547,8 +547,11 @@ def _letters(text: str) -> str:
 
 def _signature(entry: dict) -> tuple:
     authors = tuple((person["family"], person["given"]) for person in entry.get("authors") or [])
-    if entry.get("et_al") or len(authors) > 2:
-        return authors[:1] + ("et al.",)
+    if _many_authors(entry):
+        # Dashes need the same coauthors in the same order. An unlisted team is not that.
+        if len(authors) <= 1:
+            return ("etal-unlisted", id(entry))
+        return authors
     return authors
 
 
@@ -556,11 +559,68 @@ def _many_authors(entry: dict) -> bool:
     return bool(entry.get("et_al") or len(entry.get("authors") or []) > 2)
 
 
-def _tail_key(entry: dict) -> tuple[str, str, str]:
+def _within_author_key(entry: dict) -> tuple:
+    """Solo, then two authors by the second surname, then three or more by title. Same title by year."""
     authors = entry.get("authors") or []
-    title = alphabetize_key(entry.get("title") or "")[0]
-    if len(authors) >= 2 and not entry.get("et_al"):
-        return _letters(authors[0]["given"]), _letters(authors[1]["family"]), title
-    if authors:
-        return _letters(authors[0]["given"]), "", title
-    return "", "", title
+    title = title_sort_parts(entry.get("title") or "")
+    year = _year_number(entry)
+    if _many_authors(entry):
+        return (2, title, year)
+    if len(authors) == 2:
+        return (1, _letters(authors[1]["family"]), title, year)
+    given = _letters(authors[0]["given"]) if authors else ""
+    return (0, given, title, year)
+
+
+def _year_number(entry: dict) -> int:
+    match = re.search(r"\d{1,4}", str(entry.get("year") or ""))
+    return int(match.group(0)) if match else 0
+
+
+def _strip_initial_article(title: str) -> str:
+    # English A/An/The, plus Le, the foreign equivalent named in sec. 5.130.
+    match = re.match(r"^(?:a|an|the|le)\b\s+", title, flags=re.I)
+    return title[match.end() :] if match else title
+
+
+def _spell_leading_numeral(text: str) -> str:
+    match = re.match(r"^(\d+)\b", text)
+    if not match:
+        return text
+    return _spell_number(int(match.group(1))) + text[match.end() :]
+
+
+def _spell_number(number: int) -> str:
+    if 1000 <= number <= 9999:
+        high, low = divmod(number, 100)
+        head = _spell_under_100(high)
+        if low == 0:
+            return f"{head} hundred"
+        return f"{head} {_spell_under_100(low)}"
+    if number < 100:
+        return _spell_under_100(number)
+    hundreds, rest = divmod(number, 100)
+    words = f"{_ONES[hundreds]} hundred"
+    if rest:
+        words += " " + _spell_under_100(rest)
+    return words
+
+
+def _spell_under_100(number: int) -> str:
+    if number < 20:
+        return _ONES[number]
+    ten, one = divmod(number, 10)
+    if one == 0:
+        return _TENS[ten]
+    return f"{_TENS[ten]} {_ONES[one]}"
+
+
+_ONES = (
+    "zero", "one", "two", "three", "four", "five", "six", "seven", "eight", "nine",
+    "ten", "eleven", "twelve", "thirteen", "fourteen", "fifteen", "sixteen", "seventeen", "eighteen", "nineteen",
+)
+_TENS = ("", "", "twenty", "thirty", "forty", "fifty", "sixty", "seventy", "eighty", "ninety")
+_ROMAN_VALUES = {
+    "I": 1, "II": 2, "III": 3, "IV": 4, "V": 5, "VI": 6, "VII": 7, "VIII": 8, "IX": 9, "X": 10,
+    "XI": 11, "XII": 12, "XIII": 13, "XIV": 14, "XV": 15,
+}

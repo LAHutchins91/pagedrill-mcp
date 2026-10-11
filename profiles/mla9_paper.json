@@ -2,9 +2,9 @@
   "id": "mla9-research-paper",
   "name": "MLA Handbook, 9th edition \u2014 student research paper",
   "publisher": "Modern Language Association",
-  "status": "PARTIAL: layout and the transcribed citation sections are sourced; secs. 2.89-2.125 and 5.128-5.130 are not, so this style stays hidden",
+  "status": "PARTIAL: layout and the transcribed citation sections are sourced; sec. 2.89-2.125 is not, so this style stays hidden",
   "verified_on": "",
-  "unsourced_sections": ["2.89-2.125", "5.128-5.130"],
+  "unsourced_sections": ["2.89-2.125"],
   "grades": {
     "V9": "rule text read in the official 9th-ed. source",
     "E9": "attested only by official 9th-ed. examples (no rule text read)",
@@ -194,8 +194,8 @@
     },
     "alphabetize_letter_by_letter_ignore_articles": {
       "grade": "V9",
-      "src": "MLA Handbook, 9th ed., secs. 5.123-5.127",
-      "more_than_two_authors": "NOT VERIFIED: secs. 5.128-5.130 were not transcribed; that tie is flagged and left in typed order"
+      "src": "MLA Handbook, 9th ed., secs. 5.123-5.130",
+      "more_than_two_authors": "MLA Handbook, 9th ed., secs. 5.128-5.130"
     }
   },
   "in_text": {

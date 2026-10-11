@@ -24,6 +24,7 @@ from pagedrill.mla import (
     supplied,
     timestamp_span,
     title_case,
+    title_sort_parts,
     works_cited_authors,
 )
 from pagedrill.profiles import get_profile, is_selectable
@@ -39,8 +40,8 @@ class MlaStaysHidden(unittest.TestCase):
         self.assertFalse(profile["hidden"] is False)
         self.assertFalse(profile["checklist_verified"])
         self.assertFalse(is_selectable(profile))
-        self.assertEqual(profile["unsourced_sections"], ["2.89-2.125", "5.128-5.130"])
-        self.assertEqual(UNSOURCED_SECTIONS, ("2.89–2.125", "5.128–5.130"))
+        self.assertEqual(profile["unsourced_sections"], ["2.89-2.125"])
+        self.assertEqual(UNSOURCED_SECTIONS, ("2.89–2.125",))
         self.assertFalse(str(profile["status"]).startswith("verified"))
 
 
@@ -152,17 +153,98 @@ class Alphabetizing(unittest.TestCase):
         self.assertTrue(lines[1].startswith(f"{EM_DASHES}. The Nature of Narrative."))
         self.assertTrue(lines[2].startswith("Scholes, Robert, and Eric Rabkin. Science Fiction."))
 
-    def test_more_than_two_authors_is_flagged_and_not_reordered(self):
+    def test_perry_same_coauthors_use_dashes_and_chronological_order(self):
+        team = [person("Perry", "John"), person("Bratman", "Michael"), person("Fischer", "John Martin")]
+        title = "Introduction to Philosophy: Classical and Contemporary Readings"
         entries = [
-            {"authors": [person("Adams", "Peter"), person("Lee", "Ann"), person("Ng", "Kim")], "title": "B Work", "type": "book", "publisher": "X", "year": "2000"},
-            {"authors": [person("Adams", "Peter"), person("Zoe", "Ann")], "title": "A Work", "type": "book", "publisher": "X", "year": "2001"},
+            {"authors": team, "et_al": True, "title": title, "type": "book", "edition": "8th ed.", "publisher": "Oxford UP", "year": "2018"},
+            {"authors": list(team), "et_al": True, "title": title, "type": "book", "edition": "7th ed.", "publisher": "Oxford UP", "year": "2015"},
         ]
         lines, flags = render_works_cited(entries)
-        self.assertEqual(len(flags), 1)
-        self.assertIn("5.128", flags[0]["rule"])
-        self.assertTrue(lines[0].startswith("Adams, Peter, et al. B Work."))
-        self.assertTrue(lines[1].startswith("Adams, Peter, and Ann Zoe. A Work."))
-        self.assertNotIn(EM_DASHES, lines[1])
+        self.assertEqual(flags, [])
+        self.assertTrue(lines[0].startswith("Perry, John, et al. Introduction to Philosophy: Classical and Contemporary Readings. 7th ed., Oxford UP, 2015."))
+        self.assertTrue(lines[1].startswith(f"{EM_DASHES}. Introduction to Philosophy: Classical and Contemporary Readings. 8th ed., Oxford UP, 2018."))
+
+    def test_horner_different_teams_repeat_et_al_and_sort_by_title(self):
+        entries = [
+            {
+                "authors": [person("Horner", "Bruce"), person("Lu", "Min-Zhan"), person("Royster", "Jacqueline Jones")],
+                "et_al": True,
+                "title": "Language Difference in Writing: Toward a Translingual Approach",
+                "container": "College English",
+                "volume": "73",
+                "issue": "3",
+                "month": "Jan.",
+                "year": "2011",
+                "pages": "304-21",
+            },
+            {
+                "authors": [person("Horner", "Bruce"), person("Other", "Alex"), person("Team", "Sam")],
+                "et_al": True,
+                "role": "editors",
+                "title": "Cross-Language Relations in Composition",
+                "type": "book",
+                "publisher": "Southern Illinois UP",
+                "year": "2010",
+            },
+        ]
+        lines, flags = render_works_cited(entries)
+        self.assertEqual(flags, [])
+        self.assertTrue(lines[0].startswith("Horner, Bruce, et al., editors. Cross-Language Relations in Composition."))
+        self.assertTrue(lines[1].startswith("Horner, Bruce, et al. \u201cLanguage Difference in Writing:"))
+        self.assertNotIn(EM_DASHES, " ".join(lines))
+
+    def test_tannen_solo_then_pairs_then_et_al(self):
+        solo = person("Tannen", "Deborah")
+        entries = [
+            {"authors": [solo, person("Saville-Troike", "Muriel")], "role": "editors", "title": "Perspectives on Silence", "type": "book", "publisher": "Ablex Publishing", "year": "1985"},
+            {"authors": [solo, person("Freedle", "Roy O.")], "role": "editors", "title": "Linguistics in Context: Connecting Observation and Understanding", "type": "book", "publisher": "Ablex Publishing", "year": "1988"},
+            {"authors": [solo, person("Kendall", "Shari"), person("Gordon", "Cynthia")], "et_al": True, "role": "editors", "title": "Family Talk: Discourse and Identity in Four American Families", "type": "book", "publisher": "Oxford UP", "year": "2007"},
+            {"authors": [solo], "title": "You're Wearing That? Understanding Mothers and Daughters in Conversation", "type": "book", "publisher": "Ballantine Books", "year": "2006"},
+            {"authors": [solo], "title": "Talking Voices: Repetition, Dialogue, and Imagery in Conversational Discourse", "type": "book", "edition": "2nd ed.", "publisher": "Cambridge UP", "year": "2007"},
+        ]
+        lines, flags = render_works_cited(entries)
+        self.assertEqual(flags, [])
+        self.assertTrue(lines[0].startswith("Tannen, Deborah. Talking Voices:"))
+        self.assertTrue(lines[1].startswith(f"{EM_DASHES}. You're Wearing That?"))
+        self.assertTrue(lines[2].startswith("Tannen, Deborah, and Roy O. Freedle, editors. Linguistics in Context:"))
+        # Sec. 2.90's transcribed preposition list does not include "on".
+        self.assertTrue(lines[3].startswith("Tannen, Deborah, and Muriel Saville-Troike, editors. Perspectives On Silence."))
+        self.assertTrue(lines[4].startswith("Tannen, Deborah, et al., editors. Family Talk:"))
+        self.assertEqual(sum(1 for line in lines if line.startswith(EM_DASHES)), 1)
+
+    def test_coauthor_order_is_recorded_as_found(self):
+        entries = [
+            {"authors": [person("Scholes", "Robert"), person("Kellogg", "Robert")], "title": "The Nature of Narrative", "type": "book", "publisher": "Oxford UP", "year": "1966"},
+            {"authors": [person("Kellogg", "Robert"), person("Scholes", "Robert")], "title": "Reversed Names", "type": "book", "publisher": "Oxford UP", "year": "1970"},
+        ]
+        lines, _ = render_works_cited(entries)
+        self.assertTrue(lines[0].startswith("Kellogg, Robert, and Robert Scholes."))
+        self.assertTrue(lines[1].startswith("Scholes, Robert, and Robert Kellogg."))
+
+    def test_title_numerals_articles_and_sequences(self):
+        titles = [
+            "The Representation of War in German Literature",
+            "1914: An Anonymous Diary on the Eve of World War I",
+            "The Guns of August",
+            "Henry V",
+            "Henry IV",
+            "Star Trek III: The Search for Spock",
+            "Star Trek II: The Wrath of Khan",
+            "An Encyclopedia of the Latin American Novel",
+            "Le théâtre en France au Moyen Age",
+        ]
+        ordered = sorted(titles, key=title_sort_parts)
+        guns = ordered.index("The Guns of August")
+        diary = ordered.index("1914: An Anonymous Diary on the Eve of World War I")
+        representation = ordered.index("The Representation of War in German Literature")
+        self.assertLess(guns, diary)
+        self.assertLess(diary, representation)
+        self.assertLess(ordered.index("Henry IV"), ordered.index("Henry V"))
+        self.assertLess(ordered.index("Star Trek II: The Wrath of Khan"), ordered.index("Star Trek III: The Search for Spock"))
+        self.assertTrue(title_sort_parts("1914: An Anonymous Diary on the Eve of World War I")[0].startswith("NINETEENFOURTEEN"))
+        self.assertTrue(title_sort_parts("An Encyclopedia of the Latin American Novel")[0].startswith("ENCYCLOPEDIA"))
+        self.assertTrue(title_sort_parts("Le théâtre en France au Moyen Age")[0].startswith("THEATRE"))
 
 
 class EntryPunctuation(unittest.TestCase):
