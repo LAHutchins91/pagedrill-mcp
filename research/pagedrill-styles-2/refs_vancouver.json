@@ -1,0 +1,20 @@
+{
+  "_note": "Extracted fields (grounded in the typed entry) plus lookups from PubMed (journal abbreviation), which are logged as lookups, not typed data.",
+  "references": [
+    {"key": "halpern", "cite": ["Halpern et al.", "2002"], "type": "journal-article", "authors": [{"family": "Halpern", "initials": "S. D."}, {"family": "Ubel", "initials": "P. A."}, {"family": "Caplan", "initials": "A. L."}],
+     "title": "Solid-Organ Transplantation in HIV-Infected Patients", "container": "New England Journal of Medicine", "year": "2002", "month": "July", "day": "25", "volume": "347", "issue": "4", "pages": "284-287", "doi": null,
+     "lookup": {"journal_abbrev": "N Engl J Med", "from": "PubMed PMID 12140307 (source field)"},
+     "verified": "PubMed PMID 12140307: N Engl J Med 2002 Jul 25;347(4):284-7, Halpern SD, Ubel PA, Caplan AL; Crossref DOI 10.1056/NEJMsb020632"},
+    {"key": "murray", "cite": ["Murray et al.", "2002"], "type": "book", "authors": [{"family": "Murray", "initials": "P. R."}, {"family": "Rosenthal", "initials": "K. S."}, {"family": "Kobayashi", "initials": "G. S."}, {"family": "Pfaller", "initials": "M. A."}],
+     "title": "Medical Microbiology", "edition": "4th", "place": "St. Louis", "publisher": "Mosby", "year": "2002",
+     "verified": "NOT on Crossref or PubMed (book). Identical to NLM Sample Reference #19, so taken as correct but flagged."},
+    {"key": "rose", "cite": ["Rose et al.", "2002"], "type": "journal-article", "authors": [{"family": "Rose", "initials": "M. E."}, {"family": "Huerbin", "initials": "M. B."}, {"family": "Melick", "initials": "J."}, {"family": "Marion", "initials": "D. W."}, {"family": "Palmer", "initials": "A. M."}, {"family": "Schiding", "initials": "J. K."}, {"family": "Kochanek", "initials": "P. M."}, {"family": "Graham", "initials": "S. H."}],
+     "title": "Regulation of Interstitial Excitatory Amino Acid Concentrations After Cortical Contusion Injury", "container": "Brain Research", "year": "2002", "month": null, "day": null, "volume": "935", "issue": "1-2", "pages": "40-46", "doi": null,
+     "lookup": {"journal_abbrev": "Brain Res", "from": "PubMed PMID 12062471 (source field)"},
+     "verified": "PubMed PMID 12062471: Brain Res 2002 May 10;935(1-2):40-6, 8 authors; Crossref DOI 10.1016/s0006-8993(02)02445-9. NOTE: PubMed also has the same title/authors at Brain Res 943(1):15-22 (PMID 12088834) - flag for the author."},
+    {"key": "zhang", "cite": ["Zhang et al.", "2009"], "type": "journal-article", "authors": [{"family": "Zhang", "initials": "M."}, {"family": "Holman", "initials": "C. D."}, {"family": "Price", "initials": "S. D."}, {"family": "Sanfilippo", "initials": "F. M."}, {"family": "Preen", "initials": "D. B."}, {"family": "Bulsara", "initials": "M. K."}],
+     "title": "Comorbidity and Repeat Admission to Hospital for Adverse Drug Reactions in Older Adults: Retrospective Cohort Study", "container": "BMJ", "year": "2009", "month": "January", "day": "7", "volume": "338", "issue": null, "pages": "a2752", "doi": "10.1136/bmj.a2752",
+     "lookup": {"journal_abbrev": "BMJ", "from": "PubMed PMID 19129307 (source field)"},
+     "verified": "PubMed PMID 19129307: BMJ 2009 Jan 7;338:a2752, 6 authors; DOI 10.1136/bmj.a2752"}
+  ]
+}

@@ -1,0 +1,16 @@
+{
+  "_note": "Fields as the user's assistant would extract them from the messy entries (LLM step). The engine renders deterministically and runs the grounding check: every value must appear in the original entry text. Crossref status recorded per entry (crossref/crossref_results.json).",
+  "references": [
+    {"key": "mantel", "type": "book", "authors": [{"family": "Mantel", "given": "Hilary"}], "title": "Wolf Hall", "publisher": "Picador", "year": "2010",
+     "crossref": "not on Crossref (trade book). Matches MLA's own 9th-ed. example 'Mantel, Hilary. Wolf Hall. Picador, 2010.' (style.mla.org Citations by Format)."},
+    {"key": "baron", "type": "journal-article", "authors": [{"family": "Baron", "given": "Naomi S."}], "title": "Redefining Reading: The Impact of Digital Communication Media",
+     "container": "PMLA", "volume": "128", "issue": "1", "month": "January", "year": "2013", "pages": "193-200", "doi": null,
+     "crossref": "verified: 10.1632/pmla.2013.128.1.193, PMLA 128(1), Jan. 2013, 193-200, author Naomi S. Baron."},
+    {"key": "berman", "type": "journal-article", "authors": [{"family": "Berman", "given": "Russell A."}], "title": "The Necessity of Second-Language Learning",
+     "container": "ADFL Bulletin", "volume": "43", "issue": "2", "month": null, "year": "2015", "pages": "11-14", "doi": "10.1632/adfl.43.2.11",
+     "crossref": "DOI resolves (10.1632/adfl.43.2.11, pp. 11-14, 2015) but the Crossref record has no author, volume or issue and names the container 'ADFL'. Author/vol./no. taken from the student's entry and MLA's own example; flagged for the user."},
+    {"key": "adams", "type": "journal-article", "authors": [{"family": "Adams", "given": "Peter"}], "et_al": true, "title": "The Accelerated Learning Program: Throwing Open the Gates",
+     "container": "Journal of Basic Writing", "volume": "28", "issue": "2", "season": "Fall", "year": "2009", "pages": "50-69", "doi": null,
+     "crossref": "verified: 10.37514/jbw-j.2009.28.2.04, vol. 28 no. 2, 2009, pp. 50-69, first author Peter Adams (Crossref lists 3 authors)."}
+  ]
+}

@@ -1,0 +1,21 @@
+{
+  "_note": "Fields as the extraction step would read them from the messy entries. The engine renders deterministically; every value must occur in the typed entry (grounding check). Crossref results: crossref/crossref_results.json.",
+  "references": [
+    {"key": "chiampi", "cite": ["Chiampi and Zilberti", "2011"], "type": "journal-article", "authors": [{"family": "Chiampi", "initials": "M. M."}, {"family": "Zilberti", "initials": "L. L."}],
+     "title": "Induction of Electric Field in Human Bodies Moving Near MRI: An Efficient BEM Computational Procedure", "container": "IEEE Transactions on Biomedical Engineering",
+     "volume": "58", "issue": "10", "pages": "2787-93", "article_no": null, "month": "October", "year": "2011", "doi": "10.1109/TBME.2011.2158315",
+     "crossref": "verified: 10.1109/TBME.2011.2158315, IEEE Trans. Biomed. Eng. 58(10):2787-2793, Oct. 2011, M. M. Chiampi, L. L. Zilberti"},
+    {"key": "fardel", "cite": ["Fardel et al.", "2007"], "type": "journal-article", "authors": [{"family": "Fardel", "initials": "R."}, {"family": "Nagel", "initials": "M."}, {"family": "Nüesch", "initials": "F."}, {"family": "Lippert", "initials": "T."}, {"family": "Wokaun", "initials": "A."}],
+     "title": "Fabrication of organic light-emitting diode pixels by laser-assisted forward transfer", "container": "Applied Physics Letters",
+     "volume": "91", "issue": "6", "pages": null, "article_no": "061103", "month": "August", "year": "2007", "doi": "10.1063/1.2759475",
+     "crossref": "verified: 10.1063/1.2759475, Appl. Phys. Lett. 91(6), article 061103, Aug. 2007, 5 authors (Fardel, Nagel, Nüesch, Lippert, Wokaun)"},
+    {"key": "ito", "cite": ["Ito et al.", "2008"], "type": "journal-article", "authors": [{"family": "Ito", "initials": "M."}, {"family": "Miyazaki", "initials": "C."}, {"family": "Ishizaki", "initials": "M."}, {"family": "Kon", "initials": "M."}, {"family": "Ikeda", "initials": "N."}, {"family": "Okubo", "initials": "T."}, {"family": "Matsubara", "initials": "R."}, {"family": "Hatta", "initials": "K."}, {"family": "Ugajin", "initials": "Y."}, {"family": "Sekine", "initials": "N."}],
+     "title": "Application of amorphous oxide TFT to electrophoretic display", "container": "Journal of Non-Crystalline Solids",
+     "volume": "354", "issue": "19-25", "pages": "2777-2782", "article_no": null, "month": "May", "year": "2008", "doi": null,
+     "crossref": "verified: 10.1016/j.jnoncrysol.2007.10.083, vol. 354, issue 19-25, pp. 2777-2782, May 2008, 10 authors. NOTE: the IEEE Reference Guide's own example of this article has a different title and 'no. 19, Feb. 2008'; Crossref disagrees, so we follow Crossref."},
+    {"key": "vatta", "cite": ["Vatta et al.", "2019"], "type": "journal-article", "authors": [{"family": "Vatta", "initials": "F."}, {"family": "Soranzo", "initials": "A."}, {"family": "Babich", "initials": "F."}],
+     "title": "More Accurate Analysis of Sum-Product Decoding of LDPC Codes Using a Gaussian Approximation", "container": "IEEE Communications Letters",
+     "volume": "23", "issue": "2", "pages": "230-233", "article_no": null, "month": "February", "year": "2019", "doi": "10.1109/LCOMM.2018.2886261",
+     "crossref": "verified: 10.1109/LCOMM.2018.2886261, IEEE Commun. Lett. 23(2):230-233, Feb. 2019 (the guide shows its earlier 'early access' form)"}
+  ]
+}
