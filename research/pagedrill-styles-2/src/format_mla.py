@@ -5,7 +5,7 @@ from pathlib import Path
 sys.path.insert(0, "src")
 sys.path.insert(0, str(Path(__file__).resolve().parents[3] / "engine"))
 from fmtlib import *
-from pagedrill.mla import cite, repeat_byline, shorten_locations, shorten_range, sort_entries, title_case, works_cited_authors
+from pagedrill.mla import cite, repeat_byline, shorten_locations, shorten_range, sort_entries, title_case_with_flags, works_cited_authors
 SRC, DST, PROFILE, REFS = sys.argv[1:5]
 prof = json.load(open(PROFILE)); refs = json.load(open(REFS))["references"]; S = prof["sources"]
 FONT, SIZE = prof["font"]["name"], prof["font"]["size_pt"]
@@ -31,12 +31,14 @@ for style, text, p in paras:
     body.append({"level": lvl, "text": text, "italic": ital})
 L.change("header-order", " / ".join(f"{k}" for k in meta), "author / instructor / course / date", S["ch1_3"])
 
-# ---------- 2. title (1.3): no bold/italic/underline/quotes/all caps, no period; capitalization untouched ----------
+# ---------- 2. title (1.3): no bold/italic/underline/quotes/all caps, no period; sec. 2.90 capitalization ----------
 t0 = title
 if any(r.bold or r.underline for r in title_runs): L.change("title-style", "bold/underlined, 16 pt", "plain, 12 pt, centered", S["ch1_3"])
 if re.search(r"[.]$", title): title = title[:-1]; L.change("title-period", t0, title, S["ch1_3"])
 if title.strip("\u201c\u201d\"") != title: title = title.strip("\u201c\u201d\""); L.change("title-quotes", t0, title, S["ch1_3"])
-cased = title_case(title)
+cased, caps_flags = title_case_with_flags(title)
+for fl in caps_flags:
+    L.flag(fl["item"], fl["why"], fl["rule"])
 if cased != title:
     L.change("title-capitalization", title, cased, cite("2.90"))
     title = cased
@@ -49,7 +51,9 @@ for b in body:
         L.change("heading-numbering", b["text"], t2, S["ch1_5"])
         L.flag(f'Heading "{b["text"]}"', "Number removed: MLA 1.5 says generally avoid numbers/letters on headings unless your discipline uses them. Put them back if your instructor wants numbered sections.", S["ch1_5"])
         b["text"] = t2
-    headed = title_case(b["text"])
+    headed, caps_flags = title_case_with_flags(b["text"])
+    for fl in caps_flags:
+        L.flag(fl["item"], fl["why"], fl["rule"])
     if headed != b["text"]:
         L.change("heading-capitalization", b["text"], headed, cite("2.90"))
         b["text"] = headed
@@ -78,7 +82,12 @@ rendered = []
 previous_names = None
 for r in refs:
     au, previous_names = repeat_byline(r, previous_names)
-    work_title = r["title"] if r.get("untitled") else title_case(r["title"])
+    if r.get("untitled"):
+        work_title = r["title"]
+    else:
+        work_title, caps_flags = title_case_with_flags(r["title"])
+        for fl in caps_flags:
+            L.flag(fl["item"], fl["why"], fl["rule"])
     if r["type"] == "book":
         segs = [(au + " ", False, False), (work_title, True, False), (". " + r["publisher"] + ", " + r["year"] + ".", False, False)]
     else:

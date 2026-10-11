@@ -24,6 +24,7 @@ from pagedrill.mla import (
     supplied,
     timestamp_span,
     title_case,
+    title_case_with_flags,
     title_sort_parts,
     works_cited_authors,
 )
@@ -67,6 +68,35 @@ class TitleCase(unittest.TestCase):
         self.assertEqual(title_case("notes according to a friend"), "Notes according to a Friend")
         self.assertEqual(title_case("love as if it mattered"), "Love As If It Mattered")
         self.assertEqual(title_case("life as a house"), "Life as a House")
+
+    def test_prepositions_stay_lowercase(self):
+        # Sec. 2.90 lowercases the preposition category. "about" is a preposition here.
+        self.assertEqual(title_case("perspectives on silence"), "Perspectives on Silence")
+        self.assertEqual(title_case("ruins of empire"), "Ruins of Empire")
+        self.assertEqual(
+            title_case("what we talk about when we talk about love"),
+            "What We Talk about When We Talk about Love",
+        )
+        # "for" is a preposition and a coordinating conjunction. Lowercase either way.
+        self.assertEqual(title_case("a letter for the committee"), "A Letter for the Committee")
+        cased, flags = title_case_with_flags("what we talk about when we talk about love")
+        self.assertEqual(cased, "What We Talk about When We Talk about Love")
+        self.assertEqual(flags, [])
+
+    def test_subordinating_conjunction_introduces_a_clause(self):
+        self.assertEqual(title_case("notes after the war ended"), "Notes After the War Ended")
+        self.assertEqual(title_case("the world before rome fell"), "The World Before Rome Fell")
+        self.assertEqual(title_case("notes after the war"), "Notes after the War")
+
+    def test_ambiguous_part_of_speech_is_left_as_typed(self):
+        cased, flags = title_case_with_flags("letters after going home")
+        self.assertEqual(cased, "Letters after Going Home")
+        self.assertEqual(len(flags), 1)
+        self.assertIn("after", flags[0]["why"])
+        self.assertIn("2.90", flags[0]["rule"])
+        about, about_flags = title_case_with_flags("a delay of about five years")
+        self.assertEqual(about, "A Delay of about Five Years")
+        self.assertTrue(any("approximately" in item["why"] for item in about_flags))
 
     def test_untitled_text_is_not_recased(self):
         self.assertEqual(title_case("roses are red", exact=True), "roses are red")
@@ -208,8 +238,7 @@ class Alphabetizing(unittest.TestCase):
         self.assertTrue(lines[0].startswith("Tannen, Deborah. Talking Voices:"))
         self.assertTrue(lines[1].startswith(f"{EM_DASHES}. You're Wearing That?"))
         self.assertTrue(lines[2].startswith("Tannen, Deborah, and Roy O. Freedle, editors. Linguistics in Context:"))
-        # Sec. 2.90's transcribed preposition list does not include "on".
-        self.assertTrue(lines[3].startswith("Tannen, Deborah, and Muriel Saville-Troike, editors. Perspectives On Silence."))
+        self.assertTrue(lines[3].startswith("Tannen, Deborah, and Muriel Saville-Troike, editors. Perspectives on Silence."))
         self.assertTrue(lines[4].startswith("Tannen, Deborah, et al., editors. Family Talk:"))
         self.assertEqual(sum(1 for line in lines if line.startswith(EM_DASHES)), 1)
 

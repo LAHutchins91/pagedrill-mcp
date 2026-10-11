@@ -16,29 +16,68 @@ CITE = "MLA Handbook, 9th ed., sec. {section}"
 # Still unread. Do not invent an italics-in-prose rule.
 UNSOURCED_SECTIONS = ("2.89–2.125",)
 
-# 2.90. Mid-title words that stay lowercase. "as" is also listed as a subordinating
-# conjunction; alone, the lowercase preposition list is what the transcription gives
-# for mid-title "as". The phrases "as if" and "as soon as" are capitalized as conjunctions.
-_LOWER = {
-    "a",
-    "an",
-    "the",
-    "and",
-    "but",
-    "for",
-    "nor",
-    "or",
-    "so",
-    "yet",
-    "against",
-    "as",
-    "between",
-    "in",
-    "of",
-    "to",
+# 2.90. The parenthetical lists in the transcription are examples of categories.
+# Articles and coordinating conjunctions stay lowercase. Prepositions stay lowercase.
+# Subordinating conjunctions are capitalized. "for" is a preposition and a coordinating
+# conjunction, so it stays lowercase either way. "after", "before", and "as" (and
+# "until" / "since", the same split) are prepositions unless they introduce a clause.
+# A word whose part of speech cannot be settled is left as typed and flagged.
+_ARTICLES = {"a", "an", "the"}
+_COORD = {"and", "but", "for", "nor", "or", "so", "yet"}
+_PREP_ALWAYS = {
+    "against", "amid", "amidst", "among", "amongst", "beside", "besides", "beneath",
+    "between", "beyond", "despite", "during", "except", "from", "into", "of", "onto",
+    "per", "plus", "regarding", "throughout", "to", "toward", "towards", "underneath",
+    "unto", "upon", "versus", "via", "with", "within", "without",
+}
+_PREP_IF_OBJECT = {
+    "about", "above", "across", "along", "around", "at", "behind", "below", "by",
+    "down", "in", "inside", "near", "off", "on", "out", "outside", "over", "past",
+    "through", "under", "up",
+}
+# Preposition, or a subordinating conjunction when it introduces a clause.
+_PREP_OR_SUBORD = {"after", "before", "as", "until", "since", "till"}
+_SUBORD = {"although", "because", "if", "unless", "when", "where", "while", "whereas", "whether"}
+_DET = {
+    "a", "an", "the", "my", "your", "his", "her", "its", "our", "their",
+    "this", "that", "these", "those", "some", "any", "no", "every", "each", "another",
+}
+_SUBJECT = {"i", "we", "you", "he", "she", "it", "they", "who", "whoever"}
+_CLAUSE_OPENERS = _SUBORD | {"how", "what", "why", "who", "whom"}
+_AUX = {
+    "am", "is", "are", "was", "were", "be", "been", "being",
+    "has", "have", "had", "do", "does", "did",
+    "will", "would", "can", "could", "may", "might", "must", "shall", "should",
+}
+_CLEAR_VERBS = _AUX | {
+    "ended", "ends", "fell", "falls", "came", "comes", "went", "goes",
+    "died", "dies", "began", "begins", "started", "starts", "passed", "passes",
+    "rose", "rises", "left", "leaves", "knew", "knows", "stopped", "stops",
+    "worked", "works", "lived", "lives", "spoke", "speaks", "said", "says",
+    "wrote", "writes", "made", "makes", "took", "takes", "gave", "gives",
+    "saw", "sees", "found", "finds", "became", "becomes", "seemed", "seems",
+    "remained", "remains", "appeared", "appears", "stood", "stands",
+}
+_CLEAR_ADJ = {
+    "long", "great", "old", "new", "other", "high", "small", "large", "little",
+    "big", "good", "bad", "early", "late", "next", "last", "first", "second",
+    "third", "short", "young", "whole", "same", "few", "many", "major", "minor",
+    "civil", "cold", "hot", "public", "private",
+}
+_NUMBER_WORDS = {
+    "one", "two", "three", "four", "five", "six", "seven", "eight", "nine", "ten",
+    "eleven", "twelve", "thirteen", "fourteen", "fifteen", "sixteen", "seventeen",
+    "eighteen", "nineteen", "twenty", "thirty", "forty", "fifty", "sixty", "seventy",
+    "eighty", "ninety", "hundred", "thousand",
+}
+_ADVERBS = {
+    "again", "away", "apart", "aside", "back", "forward", "now", "then", "still",
+    "regardless", "ahead", "together", "abroad",
 }
 _LOWER_PHRASES = (("according", "to"),)
 _CAP_PHRASES = (("as", "if"), ("as", "soon", "as"))
+_HYPHEN_LOWER = _ARTICLES | _COORD | _PREP_ALWAYS
+_ALL_PREPS = _PREP_ALWAYS | _PREP_IF_OBJECT | _PREP_OR_SUBORD | _COORD
 # The transcription gives one closed prefix. No other prefix is treated as closed.
 _CLOSED_HYPHEN = {"anti-slavery": "Anti-slavery"}
 
@@ -99,19 +138,26 @@ def cite(section: str) -> str:
 
 def title_case(text: str, *, exact: bool = False) -> str:
     """Sec. 2.90. exact=True keeps an untitled poem or message as transcribed."""
+    cased, _flags = title_case_with_flags(text, exact=exact)
+    return cased
+
+
+def title_case_with_flags(text: str, *, exact: bool = False) -> tuple[str, list[dict]]:
+    """Sec. 2.90. Ambiguous parts of speech are returned as flags and left as typed."""
     if exact or not text or not text.strip():
-        return text
+        return text, []
     pieces = re.split(r"(?<=[A-Za-z])(\s*:\s*)(?=[A-Za-z])", text)
     out = []
+    flags: list[dict] = []
     for piece in pieces:
         if re.fullmatch(r"\s*:\s*", piece):
             out.append(": ")
         else:
-            out.append(_case_segment(piece))
-    return "".join(out)
+            out.append(_case_segment(piece, flags))
+    return "".join(out), flags
 
 
-def _case_segment(text: str) -> str:
+def _case_segment(text: str, flags: list[dict]) -> str:
     tokens = re.findall(
         r"[A-Za-z0-9]+(?:['’][A-Za-z0-9]+)*(?:-[A-Za-z0-9]+(?:['’][A-Za-z0-9]+)*)*|[^A-Za-z0-9]+",
         text,
@@ -121,19 +167,26 @@ def _case_segment(text: str) -> str:
         return text
     lowered = [tokens[i].lower() for i in word_at]
     style = ["cap"] * len(lowered)
+    claimed = _claim_phrases(lowered, style)
     last = len(lowered) - 1
     for i, word in enumerate(lowered):
-        if i not in (0, last) and word in _LOWER:
+        if i in (0, last) or i in claimed:
+            continue
+        if word in _ARTICLES or word in _COORD or word in _PREP_ALWAYS:
             style[i] = "lower"
-    for phrase in _LOWER_PHRASES:
-        _mark_phrase(lowered, style, phrase, "lower")
-    for phrase in _CAP_PHRASES:
-        _mark_phrase(lowered, style, phrase, "cap")
+        elif word in _SUBORD:
+            style[i] = "cap"
+        elif word in _PREP_OR_SUBORD:
+            _style_prep_or_subord(style, flags, i, word, lowered[i + 1 :])
+        elif word in _PREP_IF_OBJECT:
+            _style_prep_object(style, flags, i, word, lowered[i + 1 :])
     style[0] = "cap"
     style[last] = "cap"
     cased = list(tokens)
     for n, index in enumerate(word_at):
         raw = tokens[index]
+        if style[n] == "keep":
+            continue
         if style[n] == "lower":
             cased[index] = raw.lower()
         elif raw.lower() in _CLOSED_HYPHEN:
@@ -145,16 +198,104 @@ def _case_segment(text: str) -> str:
     return "".join(cased)
 
 
-def _mark_phrase(lowered: list[str], style: list[str], phrase: tuple[str, ...], kind: str) -> None:
+def _claim_phrases(lowered: list[str], style: list[str]) -> set[int]:
+    claimed: set[int] = set()
+    for phrase in _LOWER_PHRASES:
+        claimed |= _mark_phrase(lowered, style, phrase, "lower")
+    for phrase in _CAP_PHRASES:
+        claimed |= _mark_phrase(lowered, style, phrase, "cap")
+    return claimed
+
+
+def _style_prep_or_subord(style: list[str], flags: list[dict], index: int, word: str, tail: list[str]) -> None:
+    kind = _tail_structure(tail)
+    if kind == "np":
+        style[index] = "lower"
+    elif kind in ("clause", "clause-object"):
+        style[index] = "cap"
+    else:
+        style[index] = "keep"
+        flags.append(_pos_flag(
+            word,
+            f"Sec. 2.90 lowercases prepositions and capitalizes a subordinating conjunction. "
+            f"'{word}' is a preposition unless it introduces a clause. "
+            f"The part of speech could not be determined, so the word was left as typed.",
+        ))
+
+
+def _style_prep_object(style: list[str], flags: list[dict], index: int, word: str, tail: list[str]) -> None:
+    if word == "about" and tail and (tail[0].isdigit() or tail[0] in _NUMBER_WORDS):
+        style[index] = "keep"
+        flags.append(_pos_flag(
+            word,
+            "Sec. 2.90 lowercases 'about' when it is a preposition. Before a numeral it can also "
+            "be the adverb meaning approximately. The part of speech could not be determined, "
+            "so the word was left as typed.",
+        ))
+        return
+    kind = _tail_structure(tail)
+    if kind == "adverb":
+        style[index] = "keep"
+        flags.append(_pos_flag(
+            word,
+            f"Sec. 2.90 lowercases '{word}' as a preposition and capitalizes it as an adverb. "
+            f"The part of speech could not be determined, so the word was left as typed.",
+        ))
+    elif kind == "none":
+        style[index] = "cap"
+    else:
+        # A following nominal or clause is the object, so the word is a preposition.
+        style[index] = "lower"
+
+
+def _pos_flag(word: str, why: str) -> dict:
+    return {"item": f"Title word '{word}'", "why": why, "rule": cite("2.90")}
+
+
+def _tail_structure(words: list[str]) -> str:
+    """Classify what follows a preposition or a preposition/conjunction."""
+    if not words:
+        return "none"
+    if len(words) == 1 and words[0] in _ADVERBS:
+        return "adverb"
+    if words[0] in _CLAUSE_OPENERS and len(words) > 1:
+        return "clause-object"
+    if words[0] in _SUBJECT and len(words) >= 2:
+        return "clause"
+    if words[0] in _ALL_PREPS:
+        return "np"
+    i = 0
+    while i < len(words) and (words[i] in _DET or words[i] in _NUMBER_WORDS or words[i].isdigit()):
+        i += 1
+    while i < len(words) and words[i] in _CLEAR_ADJ:
+        i += 1
+    if i >= len(words):
+        return "unclear"
+    rest = words[i + 1 :]
+    if words[i] in _SUBJECT and rest:
+        return "clause"
+    if not rest:
+        return "np"
+    if any(word in _CLEAR_VERBS for word in rest):
+        return "clause"
+    if rest[0] in _ALL_PREPS or rest[0] in _CLAUSE_OPENERS:
+        return "np"
+    return "unclear"
+
+
+def _mark_phrase(lowered: list[str], style: list[str], phrase: tuple[str, ...], kind: str) -> set[int]:
+    claimed: set[int] = set()
     size = len(phrase)
     last = len(lowered) - 1
     for offset in range(len(lowered) - size + 1):
         if tuple(lowered[offset : offset + size]) != phrase:
             continue
         for n in range(size):
+            claimed.add(offset + n)
             if kind == "lower" and offset + n in (0, last):
                 continue
             style[offset + n] = kind
+    return claimed
 
 
 def _one_word(token: str, *, first: bool, last: bool) -> str:
@@ -168,7 +309,7 @@ def _one_word(token: str, *, first: bool, last: bool) -> str:
             cased.append(_one_word(part, first=first and i == 0, last=last and i == len(parts) - 1))
         return "-".join(cased)
     lower = token.lower()
-    if not first and not last and lower in _LOWER:
+    if not first and not last and lower in _HYPHEN_LOWER:
         return lower
     return _cap_word(token)
 
@@ -370,14 +511,16 @@ def local_newspaper(name: str, city: str) -> str:
     return f"{name} [{city}]"
 
 
-def format_works_cited_entry(entry: dict, *, byline: str | None = None) -> str:
+def format_works_cited_entry(entry: dict, *, byline: str | None = None, flags: list | None = None) -> str:
     """Secs. 5.120–5.122. Periods after the author, the title, and the entry; commas inside a container."""
     authors = byline if byline is not None else works_cited_authors(
         entry.get("authors") or [], entry.get("role"), et_al=bool(entry.get("et_al"))
     )
     title = entry.get("title") or ""
     if not entry.get("untitled"):
-        title = title_case(title)
+        title, title_flags = title_case_with_flags(title)
+        if flags is not None:
+            flags.extend(title_flags)
     if entry.get("type") == "book" or (not entry.get("container") and entry.get("publisher")):
         publisher = entry.get("publisher") or ""
         year = str(entry.get("year") or "")
@@ -471,7 +614,7 @@ def render_works_cited(entries: list[dict]) -> tuple[list[str], list[dict]]:
     previous = None
     for entry in ordered:
         byline, previous = repeat_byline(entry, previous)
-        lines.append(format_works_cited_entry(entry, byline=byline))
+        lines.append(format_works_cited_entry(entry, byline=byline, flags=flags))
     return lines, flags
 
 

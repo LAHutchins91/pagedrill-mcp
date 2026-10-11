@@ -73,7 +73,6 @@ FLAG = user/instructor-dependent: the formatter refused to guess. NOT VERIFIED =
 - `title-style`: “bold/underlined, 16 pt” → “plain, 12 pt, centered”
 - `title-period`: “Reading, Writing, and the Screen.” → “Reading, Writing, and the Screen”
 - `heading-numbering`: “1. Reading on Screens” → “Reading on Screens”
-- `heading-capitalization`: “Reading on Screens” → “Reading On Screens”
 - `heading-numbering`: “2. Supporting New College Writers” → “Supporting New College Writers”
 - `works-cited-entry`: “Peter Adams et al. The Accelerated Learning Program: Throwing Open the Gates. Journal of Basic Writing, vol 28 no 2, Fall 2009, 50-69.” → “Adams, Peter, et al. “The Accelerated Learning Program: Throwing Open the Gates.” Journal of Basic Writing, vol. 28, no. 2, fall 2009, pp. 50–69.”
 - `works-cited-entry`: “Baron, Naomi S. 2013. Redefining Reading: The Impact of Digital Communication Media. PMLA 128(1): 193-200, January.” → “Baron, Naomi S. “Redefining Reading: The Impact of Digital Communication Media.” PMLA, vol. 128, no. 1, Jan. 2013, pp. 193–200.”
