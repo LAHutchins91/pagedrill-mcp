@@ -201,6 +201,7 @@ describe("MCP", () => {
   it("keeps the check report and one formatted download without a subscription", async () => {
     const original = fs.readFileSync(path.join(repoRoot(), "samples/apa_before.docx"));
     const saved = await upload("again.docx", original);
+    const secondFile = await upload("again-two.docx", original);
     await getStore().updateProfile(DEV_USER_ID, { subscription_status: "canceled", plan: "trial" });
     const checked = await call("check_document", { file_id: String(saved.file_id), style_id: "apa7-student" });
     expect(checked.status).toBe(200);
@@ -209,7 +210,7 @@ describe("MCP", () => {
     expect(first.isError, first.text).toBe(false);
     const applied = await call("apply_format", { proposal_id: first.data.proposal_id, base_version: first.data.base_version });
     expect(applied.isError, applied.text).toBe(false);
-    const second = await call("propose_format", { file_id: saved.file_id, style_id: "apa7-student" });
+    const second = await call("propose_format", { file_id: secondFile.file_id, style_id: "apa7-student" });
     expect(second.isError, second.text).toBe(false);
     const blocked = await call("apply_format", { proposal_id: second.data.proposal_id, base_version: second.data.base_version });
     expect(blocked.isError).toBe(true);
