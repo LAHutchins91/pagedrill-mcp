@@ -166,7 +166,7 @@ export function createPagedrillServer(ownerId: string) {
 
   tool(
     "propose_format",
-    `Preview a format. Returns the change list, flags, and checklist. Does not replace the file. Pass user-supplied values only when the user gave them. ${MILITARY}`,
+    `Preview a format. Returns the change list, flags, and checklist. Does not replace the file. Pass user-supplied values only when the user gave them. For Vancouver, journal_options selects multiple_citation (comma-space, comma, or range), list_numbering (period-space, space, or paren), and page_layout (unchanged). journal_abbreviations supplies a MEDLINE abbreviation the user already has; do not invent one. ${MILITARY}`,
     {
       file_id: fileId,
       style_id: z.string().min(1).max(80),
@@ -188,7 +188,16 @@ export function createPagedrillServer(ownerId: string) {
             .max(50)
             .optional(),
           track_changes: z.boolean().optional(),
-          table_of_contents: z.boolean().optional()
+          table_of_contents: z.boolean().optional(),
+          journal_options: z
+            .object({
+              multiple_citation: z.enum(["comma-space", "comma", "range"]).optional(),
+              list_numbering: z.enum(["period-space", "space", "paren"]).optional(),
+              page_layout: z.enum(["unchanged"]).optional()
+            })
+            .strict()
+            .optional(),
+          journal_abbreviations: z.record(z.string().max(300), z.string().max(80)).optional()
         })
         .strict()
         .optional()

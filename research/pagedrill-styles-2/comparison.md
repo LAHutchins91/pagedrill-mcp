@@ -33,7 +33,7 @@ Lawrence's bar: cheaper AND does more. Legend: ✓ yes · ✗ no · ~ partial ·
 | APA 7 | ✓ verified | ✓ | ✓ CSL | ✓ | ✓ | ✓ | — | ✓ | ✓ | ✗ (6th) |
 | MLA 9 | ~ layout verified; citations partly | ✓ | ✓ CSL | ✓ | ✓ | ✓ | — | ✓ | ✓ | ~ (edition unstated) |
 | IEEE | ✓ verified (conference template) | ✗ | ✓ CSL | ✓ | ? | ✗ | — | ✓ | ✓ | ✓ (citations only) |
-| Vancouver | ~ (refs/citations; Citing Medicine unread) | ✗ | ✓ CSL | ✓ | ? | ✗ | — | ✗ (checker only) | ✗ | ✗ |
+| Vancouver | verified (ICMJE + NLM samples + Citing Medicine ch. 1–2; layout is a journal option) | ✗ | ✓ CSL | ✓ | ? | ✗ | — | ✗ (checker only) | ✗ | ✗ |
 | Chicago / Turabian / Harvard | ✗ (licensing) | Turabian ✓ | ✓ | ✓ | ✓ | Chicago ✓ | — | ✓ all three | Chicago ✓ | Chicago ✓ |
 | Army memo AR 25-50 | ✓ verified (formats existing memo) | ✗ | ✗ | ✗ | ✗ | ✗ | ✓ generates new memos (PDF) | ✗ | ✗ | ✗ |
 | Other military (Navy/USMC, Tongue and Quill, NCOER, DA 4856) | ✗ (sources unverified) | ✗ | ✗ | ✗ | ✗ | ✗ | ✓ NCOER/OER bullets, DA 4856, awards | ✗ | ✗ | ✗ |
@@ -53,7 +53,7 @@ Lawrence's bar: cheaper AND does more. Legend: ✓ yes · ✗ no · ~ partial ·
 | **EndNote one-time** (~$150 student, used for years) | Strong reason: different job (library + Cite While You Write); our yearly price is lower than its upfront cost, and it doesn't format page layout. |
 | **Style breadth** (Chicago, Turabian, Harvard at PERRLA/Formatly/MyClassHelp; thousands of CSL styles in Zotero/EndNote) | Buy access and verify: CMOS Online (Chicago 18/17, Turabian derives from it) and MLA Handbook Plus (finishes MLA 9). Each style after licensing: M (1–2 weeks incl. checklist + samples). Harvard: ship as "your university's guide" profile importer (M). Reason not to copy CSL: CSL covers citations only, not page layout. |
 | **MLA 9 citation rules** (everyone else claims MLA 9) | Buy MLA Handbook (print/e-book) or Handbook Plus; implement 2.90, 2.139, 5.3–5.22, 5.120–5.130, 6.3–6.30 and re-run checklist_mla.md (S–M, 3–5 days after access). Needs Lawrence's OK to buy. |
-| **Vancouver** (Zotero/EndNote CSL) | Read NLM Citing Medicine (free) in a normal browser, save chapters 1–2, add rules (S, 2–3 days). No purchase. |
+| **Vancouver** (Zotero/EndNote CSL) | Chapters 1–2 are read (print-PDFs in research/vanc_src/citing_medicine/) and the profile is selectable. Later chapters (internet, audiovisual, and the rest) are still unread. |
 | **Reference library** (PERRLA, Zotero, EndNote) | Reason: not our product. Fix: import Zotero (via its API or .bib/.ris export) so refs come pre-structured (S, 3–5 days). |
 | **Inside Word / Google Docs** (PERRLA, Zotero, EndNote, Word) | Google Docs share-link import like Veermat (S, 2–3 days). Word add-in = v2 (L; Microsoft Partner Center account needs Lawrence's approval). |
 | **Tracked changes in the .docx** (Formatly, Scribbr) | Write text-level changes (citations, reference entries, labels) as real w:ins/w:del revisions; layout changes listed in a comment (M, 1–2 weeks). |

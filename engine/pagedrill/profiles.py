@@ -7,7 +7,7 @@ from pathlib import Path
 
 from .errors import PagedrillRefusal
 
-IMPLEMENTED_ENGINES = {"apa-author-date", "ar25-50-memorandum", "ieee-conference"}
+IMPLEMENTED_ENGINES = {"apa-author-date", "ar25-50-memorandum", "ieee-conference", "vancouver"}
 
 
 def profiles_dir() -> Path:

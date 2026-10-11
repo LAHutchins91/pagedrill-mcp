@@ -130,7 +130,7 @@ def _render_entry(entry: dict, profile: dict) -> dict:
     flags = []
     missing = []
     engine = profile.get("engine")
-    if entry.get("type") != "journal-article":
+    if entry.get("type") != "journal-article" and not (engine == "vancouver" and entry.get("type") == "book"):
         echoed = {key: value for key, value in entry.items() if key != "authors" and value}
         flags.append({"item": entry.get("key") or entry.get("title") or "reference", "why": f"Reference type '{entry.get('type')}' is not rendered. Only the fields in the file are listed.", "rule": "import"})
         return {"rendered": None, "fields": echoed, "missing": [], "flags": flags}
@@ -141,8 +141,6 @@ def _render_entry(entry: dict, profile: dict) -> dict:
     year = str(entry.get("year") or "")
     if not title:
         missing.append("title")
-    if not journal:
-        missing.append("journal")
     if not year:
         missing.append("year")
     volume = entry.get("volume") or ""
@@ -152,9 +150,12 @@ def _render_entry(entry: dict, profile: dict) -> dict:
     month = entry.get("month") or ""
     if month.lower()[:3] in MONTHS and month.lower() not in {name.lower() for name in MONTHS.values()}:
         month = MONTHS[month.lower()[:3]]
-    for field, present in (("volume", volume), ("issue", issue), ("pages", pages), ("doi", doi), ("month", month)):
-        if not present:
-            missing.append(field)
+    if entry.get("type") == "journal-article":
+        if not journal:
+            missing.append("journal")
+        for field, present in (("volume", volume), ("issue", issue), ("pages", pages), ("doi", doi), ("month", month)):
+            if not present:
+                missing.append(field)
     if engine == "ieee-conference" and authors and title and journal and year and volume:
         parsed = {
             "type": "journal-article",
@@ -199,6 +200,49 @@ def _render_entry(entry: dict, profile: dict) -> dict:
         text = "".join(piece for piece, _italic in segments) if segments else None
         if parsed_month_missing and text:
             text = re.sub(r", (?:Jan\.|Feb\.|Mar\.|Apr\.|May|Jun\.|Jul\.|Aug\.|Sep\.|Oct\.|Nov\.|Dec\.) (\d{4})", r", \1", text)
+        flags.extend(local_flags)
+        flags.extend({"item": name, "why": "Not in the imported file. It was not invented.", "rule": "import"} for name in missing)
+        return {"rendered": text, "missing": missing, "flags": flags}
+    if engine == "vancouver":
+        from .vancouver import render_parsed
+
+        if entry.get("type") == "book":
+            parsed = {
+                "type": "book",
+                "authors": authors,
+                "key": (authors[0]["family"].lower() + year) if authors and year else "book",
+                "year": year,
+                "title": title,
+                "edition": entry.get("edition") or "",
+                "place": entry.get("address") or entry.get("place") or "",
+                "publisher": entry.get("publisher") or "",
+                "typed": title,
+            }
+            text, local_flags, _missing = render_parsed(parsed, profile)
+            flags.extend(local_flags)
+            for name, present in (("author", authors), ("title", title), ("year", year), ("place", parsed["place"]), ("publisher", parsed["publisher"])):
+                if not present:
+                    missing.append(name)
+            if not parsed["edition"]:
+                missing.append("edition")
+            flags.extend({"item": name, "why": "Not in the imported file. It was not invented.", "rule": "import"} for name in missing)
+            return {"rendered": text, "missing": missing, "flags": flags}
+        parsed = {
+            "type": "journal-article",
+            "authors": authors,
+            "key": (authors[0]["family"].lower() + year) if authors and year else "journal",
+            "year": year,
+            "month": month or None,
+            "day": None,
+            "title": title,
+            "container": journal,
+            "volume": volume,
+            "issue": issue or None,
+            "pages": pages,
+            "doi": doi or None,
+            "typed": title,
+        }
+        text, local_flags, _missing = render_parsed(parsed, profile)
         flags.extend(local_flags)
         flags.extend({"item": name, "why": "Not in the imported file. It was not invented.", "rule": "import"} for name in missing)
         return {"rendered": text, "missing": missing, "flags": flags}

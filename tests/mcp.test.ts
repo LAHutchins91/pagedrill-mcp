@@ -144,8 +144,8 @@ describe("MCP", () => {
     const styles = await call("list_styles", {});
     const ids = ((styles.data.styles as { id: string }[]) ?? []).map((item) => item.id);
     expect(ids).toContain("ieee-conference-letter");
+    expect(ids).toContain("vancouver-icmje-nlm");
     expect(ids).not.toContain("mla9-research-paper");
-    expect(ids).not.toContain("vancouver-icmje-nlm");
   });
 
   it("writes tracked changes and a table-of-contents field when asked", async () => {

@@ -63,6 +63,10 @@ def evaluate(docx: bytes, profile: dict, before: bytes | None = None) -> dict:
         from .checks_ieee import evaluate_ieee
 
         rows = evaluate_ieee(docx, profile, before)
+    elif engine == "vancouver":
+        from .checks_vancouver import evaluate_vancouver
+
+        rows = evaluate_vancouver(docx, profile, before)
     else:
         rows = [{"id": 0, "rule": "Verified checklist", "source": "", "result": "FAIL", "note": "This style has no verified checklist."}]
     counts = {name: sum(1 for row in rows if row["result"] == name) for name in ("PASS", "FAIL", "FLAG")}

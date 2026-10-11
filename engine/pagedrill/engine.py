@@ -12,6 +12,7 @@ from .bibliography import render_imported
 from .checks import evaluate
 from .errors import PagedrillRefusal
 from .ieee import format_ieee
+from .vancouver import format_vancouver
 from .memo import create_memo, format_memo
 from .profiles import load_profiles, require_selectable
 
@@ -64,6 +65,8 @@ def _run(payload: dict) -> dict:
             formatted = format_memo(original, profile, supplied)
         elif profile["engine"] == "ieee-conference":
             formatted = format_ieee(original, profile, supplied)
+        elif profile["engine"] == "vancouver":
+            formatted = format_vancouver(original, profile, supplied)
         else:
             raise PagedrillRefusal("That style is not implemented.", "style_not_selectable")
         checklist = evaluate(formatted["docx"], profile, original)

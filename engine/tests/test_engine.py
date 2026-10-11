@@ -23,16 +23,17 @@ class Styles(unittest.TestCase):
     def test_only_verified_styles_are_selectable(self):
         styles = dispatch({"action": "list_styles"})["result"]["styles"]
         selectable = {item["id"] for item in styles if item["selectable"]}
-        self.assertEqual(selectable, {"apa7-student", "apa7-professional", "army-ar25-50-memorandum", "ieee-conference-letter"})
+        self.assertEqual(
+            selectable,
+            {"apa7-student", "apa7-professional", "army-ar25-50-memorandum", "ieee-conference-letter", "vancouver-icmje-nlm"},
+        )
         listed = {item["id"] for item in styles}
         self.assertNotIn("mla9-research-paper", listed)
-        self.assertNotIn("vancouver-icmje-nlm", listed)
+        self.assertIn("vancouver-icmje-nlm", listed)
         with self.assertRaises(PagedrillRefusal) as caught:
             require_selectable("mla9-research-paper")
         self.assertEqual(caught.exception.code, "style_not_selectable")
-        with self.assertRaises(PagedrillRefusal) as caught:
-            require_selectable("vancouver-icmje-nlm")
-        self.assertEqual(caught.exception.code, "style_not_selectable")
+        self.assertTrue(require_selectable("vancouver-icmje-nlm")["selectable"])
 
     def test_apa_student_checklist_and_word_equality(self):
         result = dispatch({"action": "format", "style_id": "apa7-student", "data_b64": load("apa_before.docx")})
@@ -249,6 +250,126 @@ class Styles(unittest.TestCase):
         )
         self.assertTrue(again["ok"], again.get("error"))
         self.assertEqual(again["result"]["checklist"]["counts"]["FAIL"], 0)
+
+
+class Vancouver(unittest.TestCase):
+    def test_sample_matches_nlm_and_citing_medicine(self):
+        from pagedrill.vancouver import OFFICIAL, PAGE_EXAMPLES, elide_pages, render_parsed
+        from pagedrill.profiles import get_profile
+
+        for source, expected in PAGE_EXAMPLES.items():
+            self.assertEqual(elide_pages(source), expected, source)
+        result = dispatch({"action": "format", "style_id": "vancouver-icmje-nlm", "data_b64": load("vanc_before.docx")})
+        self.assertTrue(result["ok"], result.get("error"))
+        self.assertEqual(result["result"]["checklist"]["counts"], {"PASS": 12, "FAIL": 0, "FLAG": 5})
+        self.assertEqual(result["result"]["verification"]["basis"], "in-place")
+        self.assertEqual(result["result"]["verification"]["changed_parts"], ["word/document.xml"])
+        document = Document(BytesIO(base64.b64decode(result["result"]["data_b64"])))
+        blob = "\n".join(paragraph.text for paragraph in document.paragraphs)
+        for entry in OFFICIAL.values():
+            self.assertIn(entry, blob)
+        self.assertIn("(1, 4)", blob)
+        self.assertNotIn("Halpern et al.", blob)
+        flagged = " ".join(item.get("why", "") for item in result["result"]["flags"]).lower()
+        self.assertIn("journal option", flagged)
+        self.assertIn("proper noun", flagged)
+        self.assertIn("12088834", flagged)
+        original = (ROOT / "samples" / "vanc_before.docx").read_bytes()
+        checked = dispatch({"action": "check", "style_id": "vancouver-icmje-nlm", "data_b64": base64.b64encode(original).decode("ascii")})
+        self.assertTrue(checked["ok"], checked.get("error"))
+        self.assertGreater(checked["result"]["checklist"]["counts"]["FAIL"], 0)
+        self.assertEqual(len(checked["result"]["checklist"]["rules"]), 17)
+
+        profile = get_profile("vancouver-icmje-nlm")
+        authors = [{"family": f"Author{index}", "initials": "A. B."} for index in range(7)]
+        book, _flags, _missing = render_parsed(
+            {
+                "type": "book",
+                "authors": authors,
+                "key": "author02000",
+                "year": "2000",
+                "title": "A Long Textbook",
+                "edition": "2nd",
+                "place": "Paris",
+                "publisher": "Example Press",
+                "typed": "A Long Textbook",
+            },
+            profile,
+        )
+        self.assertIsInstance(book, str)
+        self.assertNotIn("et al", book)
+        self.assertEqual(book.count("Author"), 7)
+
+    def test_journal_options_are_not_guessed(self):
+        import zipfile
+
+        raw = load("vanc_before.docx")
+        comma = dispatch(
+            {
+                "action": "format",
+                "style_id": "vancouver-icmje-nlm",
+                "data_b64": raw,
+                "supplied": {"journal_options": {"multiple_citation": "comma"}},
+            }
+        )
+        self.assertTrue(comma["ok"], comma.get("error"))
+        self.assertEqual(comma["result"]["checklist"]["counts"]["FAIL"], 0)
+        document = Document(BytesIO(base64.b64decode(comma["result"]["data_b64"])))
+        blob = "\n".join(paragraph.text for paragraph in document.paragraphs)
+        self.assertIn("(1,4)", blob)
+        self.assertNotIn("(1, 4)", blob)
+        tracked = dispatch(
+            {
+                "action": "format",
+                "style_id": "vancouver-icmje-nlm",
+                "data_b64": raw,
+                "supplied": {"track_changes": True},
+            }
+        )
+        self.assertTrue(tracked["ok"], tracked.get("error"))
+        self.assertEqual(tracked["result"]["checklist"]["counts"], {"PASS": 12, "FAIL": 0, "FLAG": 5})
+        package = zipfile.ZipFile(BytesIO(base64.b64decode(tracked["result"]["data_b64"])))
+        xml = package.read("word/document.xml")
+        self.assertIn(b'w:author="Pagedrill"', xml)
+        self.assertIn(b"<w:ins", xml)
+        refused = dispatch(
+            {
+                "action": "format",
+                "style_id": "vancouver-icmje-nlm",
+                "data_b64": raw,
+                "supplied": {"journal_options": {"page_layout": "times"}},
+            }
+        )
+        self.assertFalse(refused["ok"])
+        self.assertEqual(refused["error"]["code"], "bad_request")
+        bib = """@article{ada2020,
+  author = {Smith, Ada B.},
+  title = {A short title about displays},
+  journal = {Applied Physics Letters},
+  year = {2020},
+  volume = {10},
+  pages = {284-287}
+}
+@book{murray2002,
+  author = {Murray, P. R. and Rosenthal, K. S. and Kobayashi, G. S. and Pfaller, M. A.},
+  title = {Medical Microbiology},
+  year = {2002},
+  edition = {4th},
+  address = {St. Louis},
+  publisher = {Mosby}
+}
+"""
+        imported = dispatch({"action": "render_references", "style_id": "vancouver-icmje-nlm", "format": "bib", "text": bib})
+        self.assertTrue(imported["ok"], imported.get("error"))
+        article, book = imported["result"]["entries"]
+        self.assertIn("Applied Physics Letters", article["rendered"])
+        self.assertIn("284-7", article["rendered"])
+        self.assertNotIn("doi", article["rendered"].lower())
+        self.assertIn("doi", article["missing"])
+        self.assertEqual(
+            book["rendered"],
+            "Murray PR, Rosenthal KS, Kobayashi GS, Pfaller MA. Medical microbiology. 4th ed. St. Louis: Mosby; 2002.",
+        )
 
 
 if __name__ == "__main__":

@@ -44,6 +44,35 @@ def assert_apa_body_words(before: str, after: str, surnames: set[str], years: se
         )
 
 
+def assert_vancouver_body_words(before: str, after: str, surnames: set[str], years: set[str]) -> None:
+    """Body sentences may change only by parenthetical citation numbers.
+
+    Added tokens are citation numbers or the punctuation of a journal's number
+    style. Removed tokens are citation punctuation, 'and', 'et', 'al', a surname,
+    or a year already in the paper.
+    """
+    import difflib
+
+    punctuation = {",", ";", ".", "(", ")", "&", "-"}
+    allowed_add = punctuation | set("0123456789")
+    allowed_del = punctuation | {"and", "et", "al"} | surnames | years
+    unexpected: list[str] = []
+    for line in difflib.ndiff(tokens(before), tokens(after)):
+        if line.startswith("+ "):
+            tok = line[2:]
+            if tok not in allowed_add and not tok.isdigit():
+                unexpected.append("+" + tok)
+        elif line.startswith("- "):
+            tok = line[2:]
+            if tok not in allowed_del:
+                unexpected.append("-" + tok)
+    if unexpected:
+        raise PagedrillRefusal(
+            "The format would change the author's words. Pagedrill refused it and did not save.",
+            "word_change",
+        )
+
+
 def assert_ieee_body_words(before: str, after: str, surnames: set[str], years: set[str]) -> None:
     """Body sentences may change only by [n] citation markers.
 

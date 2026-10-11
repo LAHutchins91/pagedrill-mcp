@@ -4,7 +4,7 @@
 - **AR 25-50 memorandum** → [checklist_memo.md](checklist_memo.md): 24 rules, each with its AR 25-50 paragraph (10 Oct 2020, admin rev 007, 4 Oct 2024). memo_after.docx: **20 pass, 0 fail, 4 flagged**.
 - **MLA 9 student paper** → [checklist_mla.md](checklist_mla.md): 38 rules. mla_after.docx: **29 pass, 0 fail, 3 flagged, 6 not verified**. Status: **NOT fully verified** (Handbook ch. 1 layout verified; citation chapters 2/5/6 are subscription-only).
 - **IEEE conference paper (US letter)** → [checklist_ieee.md](checklist_ieee.md): 35 rules from the official template, Editorial Style Manual and Reference Style Guide (V 3.28.2025). ieee_after.docx: **28 pass, 0 fail, 7 flagged, 0 not verified**. Status: **FULLY VERIFIED** for journal-article references (other reference types kept as typed + flagged).
-- **Vancouver (ICMJE + NLM)** → [checklist_vancouver.md](checklist_vancouver.md): 17 rules. vanc_after.docx: **8 pass, 0 fail, 5 flagged, 4 not verified**. Status: **NOT fully verified** (Citing Medicine unread: reCAPTCHA).
+- **Vancouver (ICMJE + NLM)** → [checklist_vancouver.md](checklist_vancouver.md): 17 rules. vanc_after.docx: **12 pass, 0 fail, 5 flagged, 0 not verified**. Status: **fully verified** against Citing Medicine Chapter 1 (NBK7282) and Chapter 2 (NBK7271). Grouped citations, list numbering, and page layout stay journal options.
 - Competitor comparison and free-rival kill check → [comparison.md](comparison.md).
 - Official source status for every requested style → [sources.md](sources.md).
 
