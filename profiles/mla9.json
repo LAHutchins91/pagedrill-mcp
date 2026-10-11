@@ -1,0 +1,13 @@
+{
+  "id": "mla9",
+  "name": "MLA Handbook, 9th edition",
+  "engine": "mla",
+  "checklist_verified": false,
+  "status": "partially-verified",
+  "verified_on": "",
+  "reason": "Free MLA Style Center pages were reached. The full formatting chapter is behind MLA Handbook Plus. Not selectable until every rule is verified.",
+  "sources": [
+    "https://style.mla.org/formatting-papers/",
+    "https://style.mla.org/works-cited/works-cited-a-quick-guide/"
+  ]
+}

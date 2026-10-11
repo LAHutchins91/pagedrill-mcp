@@ -1,0 +1,40 @@
+{
+  "id": "army-ar25-50-memorandum",
+  "name": "Army memorandum (AR 25-50, 10 Oct 2020, admin rev 007 dated 4 Oct 2024)",
+  "engine": "ar25-50-memorandum",
+  "checklist_verified": true,
+  "status": "verified-official-pdf",
+  "sources": [
+    "https://armypubs.army.mil/ProductMaps/PubForm/Details.aspx?PUB_ID=1020633",
+    "https://armypubs.army.mil/epubs/DR_pubs/DR_a/ARN42124-AR_25-50-007-WEB-13.pdf"
+  ],
+  "rank_abbreviations": {
+    "General": "GEN",
+    "Lieutenant General": "LTG",
+    "Major General": "MG",
+    "Brigadier General": "BG",
+    "Colonel": "COL",
+    "Lieutenant Colonel": "LTC",
+    "Major": "MAJ",
+    "Captain": "CPT",
+    "First Lieutenant": "1LT",
+    "Second Lieutenant": "2LT",
+    "ref": "para 6-4a, table 6-1"
+  },
+  "source_pdf": "https://armypubs.army.mil/epubs/DR_pubs/DR_a/ARN42124-AR_25-50-007-WEB-13.pdf",
+  "source_record": "https://armypubs.army.mil/ProductMaps/PubForm/Details.aspx?PUB_ID=1020633",
+  "verified_on": "2026-10-10",
+  "page": {"size_in": [8.5, 11], "margins_in": {"left": 1, "right": 1, "bottom": 1, "top": 1}, "ref": "para 1-18, 2-3a, 2-3c (top margin set by letterhead; 1 in. used, see 2-5a)"},
+  "font": {"name": "Arial", "size_pt": 12, "ref": "para 1-19: font type chosen by Army senior leaders; 12 pt recommended; no unusual styles such as Script", "user_choice": true},
+  "align": {"justify_right": false, "ref": "para 2-3c"},
+  "spaces_after_sentence": 2, "spaces_ref": "para 1-39b(9) (two spaces after periods/question marks; admin rev 4 Oct 2024)",
+  "date_format": "D Month YYYY", "date_ref": "para 1-25a, 2-4a(3)(c)",
+  "time_format": "24-hour, 4 digits, no 'hours'", "time_ref": "para 1-26",
+  "lines": {"office_symbol_after_seal": 2, "memo_for_after_office_symbol": 3, "subject_after_address": 2,
+            "text_after_subject": 3, "authority_after_text": 2, "signature_after_authority_or_text": 5, "cf_after_signature": 2,
+            "ref": "para 2-4a(1),(5),(6); 2-4b(1); 2-4c(1),(2)(a),(5); 6-4b"},
+  "body": {"spacing": "single, blank line between paragraphs", "number_if_multiple": true, "first_indent_in": 0.25, "second_indent_in": 0.5, "third_indent_in": 0.5,
+           "label_formats": ["1.", "a.", "(1)", "(a)"], "wrap_to_left_margin": true, "ref": "para 2-4b(2)-(4); figure 2-1"},
+  "signature": {"start": "center of page", "start_from_left_margin_in": 3.25, "name_caps": true, "lines": ["NAME", "Rank, BRANCH", "Title"], "ref": "para 2-4c(2), 6-4a-c, table 6-1"},
+  "no_postscripts": {"ref": "para 1-29"}
+}

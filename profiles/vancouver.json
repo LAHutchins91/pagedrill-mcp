@@ -1,0 +1,13 @@
+{
+  "id": "vancouver",
+  "name": "Vancouver (ICMJE / NLM Citing Medicine)",
+  "engine": "vancouver",
+  "checklist_verified": false,
+  "status": "partially-reachable",
+  "verified_on": "",
+  "reason": "ICMJE was reached. NLM Citing Medicine was not fully read from the box. Not selectable until every rule is verified.",
+  "sources": [
+    "https://www.icmje.org/recommendations/browse/manuscript-preparation/preparing-for-submission.html",
+    "https://www.ncbi.nlm.nih.gov/books/NBK7256/"
+  ]
+}
