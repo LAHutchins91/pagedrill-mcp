@@ -8,9 +8,11 @@ import zipfile
 from io import BytesIO
 
 from .apa import format_apa
+from .bibliography import render_imported
 from .checks import evaluate
 from .errors import PagedrillRefusal
-from .memo import format_memo
+from .ieee import format_ieee
+from .memo import create_memo, format_memo
 from .profiles import load_profiles, require_selectable
 
 MAX_BYTES = 25 * 1024 * 1024
@@ -30,6 +32,8 @@ def _run(payload: dict) -> dict:
     if action == "list_styles":
         styles = []
         for profile in load_profiles():
+            if profile.get("hidden") is True and not profile.get("selectable"):
+                continue
             styles.append(
                 {
                     "id": profile.get("id"),
@@ -58,6 +62,8 @@ def _run(payload: dict) -> dict:
             formatted = format_apa(original, profile, supplied)
         elif profile["engine"] == "ar25-50-memorandum":
             formatted = format_memo(original, profile, supplied)
+        elif profile["engine"] == "ieee-conference":
+            formatted = format_ieee(original, profile, supplied)
         else:
             raise PagedrillRefusal("That style is not implemented.", "style_not_selectable")
         checklist = evaluate(formatted["docx"], profile, original)
@@ -77,10 +83,37 @@ def _run(payload: dict) -> dict:
                 "added_parts": verification.get("added_parts"),
                 "untouched_part_count": verification.get("untouched_part_count"),
                 "untouched_identical": verification.get("untouched_identical"),
+                "basis": verification.get("basis") or "in-place",
             },
             "checklist": checklist,
             "notice": formatted.get("notice") or _notice(profile),
             "title": formatted.get("title"),
+        }
+    if action == "render_references":
+        profile = require_selectable(str(payload.get("style_id") or ""))
+        kind = str(payload.get("format") or "")
+        text = payload.get("text")
+        if not isinstance(text, str) or not text.strip():
+            raise PagedrillRefusal("The reference file was empty.", "bad_request")
+        return render_imported(text, kind, profile)
+    if action == "create_memo":
+        profile = require_selectable("army-ar25-50-memorandum")
+        fields = payload.get("fields") if isinstance(payload.get("fields"), dict) else {}
+        created = create_memo(profile, fields)
+        checklist = evaluate(created["docx"], profile)
+        if checklist["counts"]["FAIL"]:
+            raise PagedrillRefusal("The memorandum failed a verified checklist rule. Pagedrill did not save it.", "checklist_failed")
+        data = created["docx"]
+        return {
+            "data_b64": base64.b64encode(data).decode("ascii"),
+            "sha256": hashlib.sha256(data).hexdigest(),
+            "size": len(data),
+            "changes": created["changes"],
+            "flags": created["flags"],
+            "verification": created["verification"],
+            "checklist": checklist,
+            "notice": created.get("notice"),
+            "title": created.get("title"),
         }
     raise PagedrillRefusal("Unknown engine action.", "bad_request")
 

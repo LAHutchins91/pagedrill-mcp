@@ -1,7 +1,7 @@
 import crypto from "node:crypto";
 import { supabaseServiceKey, supabaseUrl } from "./config.js";
 import { ToolError } from "./errors.js";
-import { emptyUsage, entitled, expiryFrom, monthKey, planCaps, QuotaError, tierFor, usageView, type UsageCounts, type UsageMetric } from "./quota.js";
+import { countKey, emptyUsage, expiryFrom, monthKey, normalizeUsage, planCaps, QuotaError, tierFor, usageView, type UsageCounts, type UsageMetric } from "./quota.js";
 import type { FileRow, Profile, ProposalRow, SavedFile, VersionRow } from "./store.js";
 
 type Row = Record<string, unknown>;
@@ -104,12 +104,15 @@ export class SupabaseStore {
     const rows = await rest<Row[]>(`usage_monthly?owner_id=eq.${ownerId}&month=eq.${month}&select=*`);
     const row = rows[0];
     if (!row) return emptyUsage();
-    return {
+    return normalizeUsage({
       formats: Number(row.formats ?? 0),
       previews: Number(row.previews ?? 0),
       files: Number(row.files ?? 0),
-      checks: Number(row.checks ?? 0)
-    };
+      checks: Number(row.checks ?? 0),
+      free_formats: Number(row.free_formats ?? 0),
+      free_previews: Number(row.free_previews ?? 0),
+      free_files: Number(row.free_files ?? 0)
+    });
   }
 
   async usage(ownerId: string, now = new Date()) {
@@ -123,14 +126,19 @@ export class SupabaseStore {
     if (!profile) throw new ToolError("Account not found.", "not_found");
     const tier = tierFor(profile);
     const counts = await this.counts(ownerId, now);
+    const stored = countKey(tier, metric);
     const cap = planCaps(tier)[metric];
-    if (counts[metric] >= cap) throw new QuotaError(metric, counts[metric], cap, tier, now);
-    counts[metric] += 1;
+    if (counts[stored] >= cap) throw new QuotaError(metric, counts[stored], cap, tier, now);
+    counts[stored] += 1;
     await rest(`usage_monthly?on_conflict=owner_id,month`, {
       method: "POST",
       headers: { Prefer: "resolution=merge-duplicates,return=representation" },
       body: JSON.stringify({ owner_id: ownerId, month: monthKey(now), ...counts })
     });
+  }
+
+  async charge(ownerId: string, metric: Exclude<UsageMetric, "checks">, now = new Date()): Promise<void> {
+    await this.consume(ownerId, metric, now);
   }
 
   async noteCheck(ownerId: string, now = new Date()): Promise<void> {
@@ -145,7 +153,7 @@ export class SupabaseStore {
 
   async reserveUpload(ownerId: string, filename: string, now = new Date()) {
     const profile = await this.getProfile(ownerId);
-    if (!profile || !entitled(profile)) throw new ToolError("An active trial or Pro subscription is required.", "access");
+    if (!profile) throw new ToolError("Account not found.", "not_found");
     await this.consume(ownerId, "files", now);
     const fileId = crypto.randomUUID();
     const nonce = crypto.randomUUID();
@@ -156,14 +164,14 @@ export class SupabaseStore {
 
   async commitNewFile(input: { ownerId: string; filename: string; kind: string; bytes: Buffer }, now = new Date()): Promise<SavedFile> {
     const profile = await this.getProfile(input.ownerId);
-    if (!profile || !entitled(profile)) throw new ToolError("An active trial or Pro subscription is required.", "access");
+    if (!profile) throw new ToolError("Account not found.", "not_found");
     await this.consume(input.ownerId, "files", now);
     return this.insertFile({ ...input, fileId: crypto.randomUUID() }, now);
   }
 
   async commitReservedFile(input: { ownerId: string; fileId: string; filename: string; kind: string; bytes: Buffer; nonce: string }, now = new Date()): Promise<SavedFile> {
     const profile = await this.getProfile(input.ownerId);
-    if (!profile || !entitled(profile)) throw new ToolError("An active trial or Pro subscription is required.", "access");
+    if (!profile) throw new ToolError("Account not found.", "not_found");
     const rows = await rest<Row[]>(`upload_nonces?nonce=eq.${input.nonce}&select=*`);
     const reserved = rows[0];
     if (!reserved || reserved.owner_id !== input.ownerId || reserved.file_id !== input.fileId) throw new ToolError("That upload link is not valid.", "bad_link");
@@ -237,7 +245,7 @@ export class SupabaseStore {
 
   async saveProposal(input: Omit<ProposalRow, "id" | "createdAt" | "expiresAt" | "appliedAt"> & { bytes: Buffer }, now = new Date()): Promise<ProposalRow> {
     const profile = await this.getProfile(input.ownerId);
-    if (!profile || !entitled(profile)) throw new ToolError("An active trial or Pro subscription is required.", "access");
+    if (!profile) throw new ToolError("Account not found.", "not_found");
     const file = await this.fileRow(input.ownerId, input.fileId, now);
     if (file.headSha !== input.baseSha) throw new ToolError("base_version does not match the current file. Propose the format again.", "stale_version");
     await this.consume(input.ownerId, "previews", now);
@@ -309,7 +317,7 @@ export class SupabaseStore {
 
   async publishEdit(ownerId: string, proposalId: string, baseVersion: string, now = new Date()): Promise<SavedFile> {
     const profile = await this.getProfile(ownerId);
-    if (!profile || !entitled(profile)) throw new ToolError("An active trial or Pro subscription is required.", "access");
+    if (!profile) throw new ToolError("Account not found.", "not_found");
     const proposal = await this.getProposal(ownerId, proposalId, now);
     const file = await this.fileRow(ownerId, proposal.fileId, now);
     if (proposal.baseSha !== baseVersion || file.headSha !== baseVersion) {

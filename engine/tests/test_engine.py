@@ -23,9 +23,16 @@ class Styles(unittest.TestCase):
     def test_only_verified_styles_are_selectable(self):
         styles = dispatch({"action": "list_styles"})["result"]["styles"]
         selectable = {item["id"] for item in styles if item["selectable"]}
-        self.assertEqual(selectable, {"apa7-student", "apa7-professional", "army-ar25-50-memorandum"})
-        with self.assertRaises(PagedrillRefusal):
-            require_selectable("mla9")
+        self.assertEqual(selectable, {"apa7-student", "apa7-professional", "army-ar25-50-memorandum", "ieee-conference-letter"})
+        listed = {item["id"] for item in styles}
+        self.assertNotIn("mla9-research-paper", listed)
+        self.assertNotIn("vancouver-icmje-nlm", listed)
+        with self.assertRaises(PagedrillRefusal) as caught:
+            require_selectable("mla9-research-paper")
+        self.assertEqual(caught.exception.code, "style_not_selectable")
+        with self.assertRaises(PagedrillRefusal) as caught:
+            require_selectable("vancouver-icmje-nlm")
+        self.assertEqual(caught.exception.code, "style_not_selectable")
 
     def test_apa_student_checklist_and_word_equality(self):
         result = dispatch({"action": "format", "style_id": "apa7-student", "data_b64": load("apa_before.docx")})
@@ -106,9 +113,142 @@ class Styles(unittest.TestCase):
         self.assertEqual(caught.exception.code, "word_change")
 
     def test_unverified_style_is_refused(self):
-        result = dispatch({"action": "format", "style_id": "ieee", "data_b64": load("apa_before.docx")})
+        result = dispatch({"action": "format", "style_id": "mla9-research-paper", "data_b64": load("apa_before.docx")})
         self.assertFalse(result["ok"])
         self.assertEqual(result["error"]["code"], "style_not_selectable")
+
+    def test_ieee_conference_checklist_and_journal_references(self):
+        result = dispatch({"action": "format", "style_id": "ieee-conference-letter", "data_b64": load("ieee_before.docx")})
+        self.assertTrue(result["ok"], result.get("error"))
+        counts = result["result"]["checklist"]["counts"]
+        self.assertEqual(counts, {"PASS": 28, "FAIL": 0, "FLAG": 7})
+        self.assertEqual(result["result"]["verification"]["basis"], "ieee-conference-template")
+        document = Document(BytesIO(base64.b64decode(result["result"]["data_b64"])))
+        blob = "\n".join(paragraph.text for paragraph in document.paragraphs)
+        self.assertIn(
+            "M. M. Chiampi and L. L. Zilberti, \u201cInduction of electric field in human bodies moving near MRI: An efficient BEM computational procedure,\u201d IEEE Trans. Biomed. Eng., vol. 58, no. 10, pp. 2787\u20132793, Oct. 2011, doi: 10.1109/TBME.2011.2158315.",
+            blob,
+        )
+        original = (ROOT / "samples" / "ieee_before.docx").read_bytes()
+        checked = dispatch({"action": "check", "style_id": "ieee-conference-letter", "data_b64": base64.b64encode(original).decode("ascii")})
+        self.assertTrue(checked["ok"], checked.get("error"))
+        self.assertGreater(checked["result"]["checklist"]["counts"]["FAIL"], 0)
+        self.assertEqual(len(checked["result"]["checklist"]["rules"]), 35)
+        self.assertNotIn("data_b64", checked["result"])
+
+    def test_nonjournal_reference_is_kept_and_flagged(self):
+        source = Document(BytesIO((ROOT / "samples" / "ieee_before.docx").read_bytes()))
+        book = "Smith, J. Display Hardware. New York: Example Press, 2019."
+        source.add_paragraph(book)
+        raw = BytesIO()
+        source.save(raw)
+        result = dispatch(
+            {"action": "format", "style_id": "ieee-conference-letter", "data_b64": base64.b64encode(raw.getvalue()).decode("ascii")}
+        )
+        self.assertTrue(result["ok"], result.get("error"))
+        self.assertEqual(result["result"]["checklist"]["counts"]["FAIL"], 0)
+        document = Document(BytesIO(base64.b64decode(result["result"]["data_b64"])))
+        blob = "\n".join(paragraph.text for paragraph in document.paragraphs)
+        self.assertIn(book, blob)
+        reasons = " ".join(item.get("why", "") for item in result["result"]["flags"])
+        self.assertIn("not a journal article", reasons)
+
+    def test_tracked_changes_and_toc_keep_the_checklist(self):
+        import zipfile
+
+        result = dispatch(
+            {
+                "action": "format",
+                "style_id": "apa7-student",
+                "data_b64": load("apa_before.docx"),
+                "supplied": {"track_changes": True, "table_of_contents": True},
+            }
+        )
+        self.assertTrue(result["ok"], result.get("error"))
+        self.assertEqual(result["result"]["checklist"]["counts"], {"PASS": 28, "FAIL": 0, "FLAG": 5})
+        package = zipfile.ZipFile(BytesIO(base64.b64decode(result["result"]["data_b64"])))
+        xml = package.read("word/document.xml")
+        self.assertIn(b'w:author="Pagedrill"', xml)
+        self.assertIn(b"<w:ins", xml)
+        self.assertIn(b"<w:del ", xml)
+        self.assertIn(b"TOC", xml)
+
+    def test_imported_references_do_not_invent_fields(self):
+        bib = """@article{smith2020,
+  author = {Smith, Ada B.},
+  title = {A short title about displays},
+  journal = {Applied Physics Letters},
+  year = {2020},
+  volume = {10}
+}
+@book{jones2020,
+  author = {Jones, Pat},
+  title = {A Book of Displays},
+  year = {2020},
+  publisher = {Example Press}
+}
+"""
+        result = dispatch({"action": "render_references", "style_id": "ieee-conference-letter", "format": "bib", "text": bib})
+        self.assertTrue(result["ok"], result.get("error"))
+        entries = result["result"]["entries"]
+        article, book = entries
+        rendered = article["rendered"]
+        self.assertIsInstance(rendered, str)
+        self.assertNotIn("doi", rendered.lower())
+        self.assertNotIn("pp.", rendered)
+        self.assertNotIn("May", rendered)
+        self.assertTrue(any(name in article["missing"] for name in ("doi", "pages", "issue", "month")))
+        self.assertIsNone(book["rendered"])
+        self.assertIn("A Book of Displays", str(book["fields"]))
+        ris = "TY  - JOUR\nAU  - Smith, Ada B.\nTI  - A short title about displays\nJO  - Applied Physics Letters\nPY  - 2020\nVL  - 10\nER  - \n"
+        apa = dispatch({"action": "render_references", "style_id": "apa7-student", "format": "ris", "text": ris})
+        self.assertTrue(apa["ok"], apa.get("error"))
+        sentence = apa["result"]["entries"][0]["rendered"]
+        self.assertIn("Smith, A. B. (2020). A short title about displays. Applied Physics Letters, 10.", sentence)
+        self.assertNotIn("doi", sentence.lower())
+        self.assertNotIn("https://", sentence)
+
+    def test_create_memorandum_flags_letterhead_and_arims(self):
+        result = dispatch(
+            {
+                "action": "create_memo",
+                "fields": {
+                    "organization": "Example Battalion",
+                    "office_symbol": "EXMP-OPS",
+                    "memo_for": "Commander, Example Battalion",
+                    "subject": "Range Schedule for the Drill",
+                    "paragraphs": ["Report at 0630 on 30 October 2026. Bring water."],
+                    "signature": {"name": "Alex Quinn", "rank": "Major", "title": "Operations Officer", "branch": "Infantry"},
+                    "date": "October 5, 2026",
+                    "poc": "The point of contact is Alex Quinn.",
+                },
+            }
+        )
+        self.assertTrue(result["ok"], result.get("error"))
+        self.assertEqual(result["result"]["checklist"]["counts"]["FAIL"], 0)
+        self.assertEqual(result["result"]["verification"]["basis"], "new-memorandum")
+        document = Document(BytesIO(base64.b64decode(result["result"]["data_b64"])))
+        blob = "\n".join(paragraph.text for paragraph in document.paragraphs)
+        self.assertIn("[DoD SEAL", blob)
+        self.assertIn("[ARIMS record no.]", blob)
+        self.assertIn("EXAMPLE BATTALION", blob)
+        self.assertIn("MEMORANDUM FOR Commander, Example Battalion", blob)
+        self.assertIn("SUBJECT: Range Schedule for the Drill", blob)
+        self.assertIn("Report at 0630 on 30 October 2026", blob)
+        self.assertIn("Bring water.", blob)
+        self.assertIn("The point of contact is Alex Quinn.", blob)
+        self.assertIn("ALEX QUINN", blob)
+        self.assertIn("MAJ", blob)
+        self.assertIn("[branch abbrev.: Infantry]", blob)
+        self.assertIn("5 October 2026", blob)
+        flagged = " ".join(f"{item.get('item', '')} {item.get('why', '')}" for item in result["result"]["flags"]).lower()
+        self.assertIn("letterhead", flagged)
+        self.assertIn("arims", flagged)
+        again = dispatch(
+            {"action": "format", "style_id": "army-ar25-50-memorandum", "data_b64": result["result"]["data_b64"]}
+        )
+        self.assertTrue(again["ok"], again.get("error"))
+        self.assertEqual(again["result"]["checklist"]["counts"]["FAIL"], 0)
 
 
 if __name__ == "__main__":

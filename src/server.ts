@@ -27,7 +27,7 @@ import { MCP_CORS_HEADERS, mcpBrowserOriginAllowed } from "./mcp-clients.js";
 import { createPagedrillServer } from "./pagedrill-tools.js";
 import { installPluginAuth } from "./plugin-auth.js";
 import { homePage, privacyPage, supportPage, termsPage } from "./public-pages.js";
-import { entitled, FileTooLargeError, planCaps, tierFor, type PlanTier } from "./quota.js";
+import { FileTooLargeError, planCaps, tierFor, type PlanTier } from "./quota.js";
 import { getStore } from "./store.js";
 import { assertFresh, readToken } from "./tokens.js";
 
@@ -212,7 +212,7 @@ app.put("/v1/upload/:token", async (req, res) => {
     if (parsed.typ !== "put") throw new ToolError("This link is not an upload link.", "bad_link");
     assertFresh(parsed.exp);
     const profile = await getStore().getProfile(parsed.ownerId);
-    if (!profile || !entitled(profile)) throw new ToolError("An active trial or Pro subscription is required.", "access");
+    if (!profile) throw new ToolError("Account not found.", "not_found");
     const tier = tierFor(profile);
     const bytes = await readLimited(req, planCaps(tier).maxFileBytes, tier);
     await engineCall<{ kind: string }>({ action: "inspect", filename: parsed.filename, data_b64: bytes.toString("base64") });
@@ -289,8 +289,6 @@ app.post("/mcp", async (req, res) => {
   if (!guardMcpOrigin(req, res)) return;
   if (!allowPublic(`mcp:${req.ip}`, 300, 60_000)) return res.status(429).set("Retry-After", "60").json({ error: "Too many requests. Retry in one minute." });
   const publicMethods = new Set(["initialize", "notifications/initialized", "tools/list", "ping"]);
-  const toolName = req.body?.params?.name;
-  const freeCheck = req.body?.method === "tools/call" && toolName === "check_document";
   let ownerId = "";
   if (!publicMethods.has(req.body?.method)) {
     try {
@@ -299,12 +297,6 @@ app.post("/mcp", async (req, res) => {
     } catch {
       res.set("WWW-Authenticate", `Bearer resource_metadata="${appBaseUrl()}/.well-known/oauth-protected-resource/mcp"`);
       return res.status(401).json({ error: "Sign in to Pagedrill to use these tools." });
-    }
-    if (!freeCheck) {
-      const profile = await getStore().getProfile(ownerId);
-      if (!profile || !entitled(profile)) {
-        return res.status(403).json({ error: "A Pagedrill trial or Pro subscription is required. check_document stays available without one." });
-      }
     }
   }
   let server: McpServer | undefined;

@@ -12,6 +12,7 @@ from docx.shared import Inches, Pt
 
 from .errors import PagedrillRefusal
 from .packageio import splice_allowed
+from .revisions import apply_tracked_changes
 
 MONTHS = "January February March April May June July August September October November December".split()
 DATE_RE = re.compile(r"(%s)\s+(\d{1,2})(?:st|nd|rd|th)?,\s*(\d{4})" % "|".join(MONTHS))
@@ -90,6 +91,8 @@ def format_memo(original: bytes, profile: dict, supplied: dict | None = None) ->
     supplied = supplied or {}
     source = Document(BytesIO(original))
     lines = [paragraph.text.strip() for paragraph in source.paragraphs if paragraph.text.strip()]
+    if any(text.startswith("MEMORANDUM FOR") for text in lines):
+        return _reformat_structured(original, profile, supplied)
     blob = _norm(" ".join(lines))
     changes: list[dict] = []
     flags: list[dict] = []
@@ -201,6 +204,8 @@ def format_memo(original: bytes, profile: dict, supplied: dict | None = None) ->
     _prepare(document, profile)
     _clear_body(document)
     _write(document, profile, organization, meta, date, subject, body, signature, salutation, close, postscript, log, flag)
+    if supplied.get("track_changes"):
+        apply_tracked_changes(document, changes)
     fresh = BytesIO()
     document.save(fresh)
     data, verification = splice_allowed(original, fresh.getvalue())
@@ -364,7 +369,9 @@ def _write(document, profile, organization, meta, date, subject, body, signature
             label = f"{chr(ord('a') + counts[2] - 1)}."
         else:
             label = f"({counts[3]})"
-        _paragraph(document, profile, f"{label}  {item['rendered']}", left=0.0, first=indents[level])
+        rendered_line = f"{label}  {item['rendered']}"
+        log("paragraph", item.get("original", item["rendered"]), rendered_line, profile["body"]["ref"])
+        _paragraph(document, profile, rendered_line, left=0.0, first=indents[level])
         if index < len(body) - 1:
             _paragraph(document, profile)
     log("numbering", "unnumbered / lettered / roman", "1. / a. / (1)", profile["body"]["ref"])
@@ -422,3 +429,183 @@ def _write(document, profile, organization, meta, date, subject, body, signature
         "Para 1-19 leaves the font face to Army senior leaders and recommends 12 point. Arial 12 is the profile setting, not a DoD-mandated face.",
         "para 1-19",
     )
+
+
+def create_memo(profile: dict, fields: dict) -> dict:
+    """Build a new AR 25-50 memorandum from fields the user filled in."""
+    required = ("organization", "office_symbol", "memo_for", "subject", "paragraphs", "signature")
+    for key in required:
+        if not fields.get(key):
+            raise PagedrillRefusal(f"The memorandum needs {key.replace('_', ' ')}. Pagedrill did not invent it.", "missing_field")
+    signature_in = fields["signature"] if isinstance(fields["signature"], dict) else {}
+    for key in ("name", "rank", "title"):
+        if not str(signature_in.get(key) or "").strip():
+            raise PagedrillRefusal(f"The signature block needs a {key}. Pagedrill did not invent it.", "missing_field")
+    paragraphs = fields["paragraphs"]
+    if not isinstance(paragraphs, list) or not all(isinstance(item, str) and item.strip() for item in paragraphs):
+        raise PagedrillRefusal("Each paragraph must be text you supply. Pagedrill did not invent one.", "missing_field")
+    ranks = {key: value for key, value in profile.get("rank_abbreviations", {}).items() if key != "ref"}
+    rank = str(signature_in["rank"]).strip()
+    abbrev = ranks.get(rank)
+    if not abbrev:
+        raise PagedrillRefusal(
+            "That rank is not in the AR 25-50 abbreviation table loaded with this profile. It was not guessed.",
+            "missing_field",
+        )
+    changes: list[dict] = []
+    flags: list[dict] = []
+
+    def log(kind: str, before: str, after: str, ref: str) -> None:
+        changes.append({"kind": kind, "before": before, "after": after, "ref": ref})
+
+    def flag(item: str, why: str, ref: str) -> None:
+        flags.append({"item": item, "why": why, "ref": ref})
+
+    body = []
+    for text in paragraphs:
+        level, bare = _classify_body(text.strip())
+        rendered, logs = fix_body(bare)
+        for kind, before, after in logs:
+            ref = {"date-format": profile["date_ref"], "military-time": profile["time_ref"], "sentence-spacing": profile["spaces_ref"]}[kind]
+            log(kind, before, after, ref)
+        if re.sub(r"\s+", " ", rendered).strip() != re.sub(r"\s+", " ", fix_body(bare)[0]).strip():
+            raise PagedrillRefusal("The format would change the author's words. Pagedrill refused it and did not save.", "word_change")
+        body.append({"level": level, "text": bare, "rendered": rendered, "original": text.strip()})
+    poc = str(fields.get("poc") or "").strip()
+    if poc:
+        rendered, logs = fix_body(poc)
+        for kind, before, after in logs:
+            ref = {"date-format": profile["date_ref"], "military-time": profile["time_ref"], "sentence-spacing": profile["spaces_ref"]}[kind]
+            log(kind, before, after, ref)
+        body.append({"level": 1, "text": poc, "rendered": rendered, "original": poc})
+    date = str(fields.get("date") or "").strip()
+    if date:
+        dated = military_date(date)
+        log("date-format", date, dated, profile["date_ref"])
+        date = dated
+    else:
+        date = "[date of signature]"
+        flag("Date", "No date was supplied. The date is added after signing, so none was invented.", "para 2-4a(3)")
+    subject = subject_case(str(fields["subject"]).strip())
+    meta = {
+        "office_symbol": str(fields["office_symbol"]).strip(),
+        "memo_for": str(fields["memo_for"]).strip(),
+        "subject": str(fields["subject"]).strip(),
+        "from_line": str(fields["office_symbol"]).strip(),
+    }
+    if fields.get("arims"):
+        meta["arims"] = str(fields["arims"]).strip()
+    if fields.get("branch_abbrev"):
+        meta["branch_abbrev"] = str(fields["branch_abbrev"]).strip()
+    if fields.get("street"):
+        meta["street"] = str(fields["street"]).strip()
+    if fields.get("city_line"):
+        meta["city_line"] = str(fields["city_line"]).strip()
+    signature = {
+        "name": str(signature_in["name"]).strip(),
+        "rank": rank,
+        "abbrev": abbrev,
+        "branch": str(signature_in.get("branch") or "").strip() or "[branch needed]",
+        "title": str(signature_in["title"]).strip(),
+    }
+    if signature["branch"] == "[branch needed]":
+        flag("Branch", "No branch was supplied, so none was abbreviated.", "para 6-4c")
+    document = Document()
+    _prepare(document, profile)
+    _clear_body(document)
+    _write(document, profile, str(fields["organization"]).strip(), meta, date, subject, body, signature, None, None, None, log, flag)
+    if fields.get("track_changes"):
+        apply_tracked_changes(document, changes)
+    fresh = BytesIO()
+    document.save(fresh)
+    return {
+        "docx": fresh.getvalue(),
+        "changes": changes,
+        "flags": flags,
+        "verification": {
+            "changed_parts": ["word/document.xml"],
+            "removed_parts": [],
+            "added_parts": [],
+            "untouched_part_count": 0,
+            "untouched_identical": True,
+            "basis": "new-memorandum",
+        },
+        "title": subject,
+        "notice": MILITARY_NOTICE,
+    }
+
+
+def _reformat_structured(original: bytes, profile: dict, supplied: dict) -> dict:
+    """Rewrite a memorandum that is already in AR 25-50 layout. Words stay."""
+    source = Document(BytesIO(original))
+    paragraphs = list(source.paragraphs)
+    texts = [paragraph.text for paragraph in paragraphs]
+    changes: list[dict] = []
+    flags: list[dict] = []
+
+    def log(kind: str, before: str, after: str, ref: str) -> None:
+        changes.append({"kind": kind, "before": before, "after": after, "ref": ref})
+
+    def flag(item: str, why: str, ref: str) -> None:
+        flags.append({"item": item, "why": why, "ref": ref})
+
+    try:
+        office = next(text for text in texts if "([ARIMS" in text or re.match(r"^[A-Z]{2,}(?:-[A-Z0-9]+)+ ", text))
+        memo_for = next(text for text in texts if text.startswith("MEMORANDUM FOR "))[len("MEMORANDUM FOR ") :]
+        subject = next(text for text in texts if text.startswith("SUBJECT: "))[len("SUBJECT: ") :]
+    except StopIteration as exc:
+        raise PagedrillRefusal("The memorandum layout is incomplete. Pagedrill did not invent the missing line.", "missing_field") from exc
+    match = re.match(r"^(\S+) \((.*)\)\t(.+)$", office)
+    if not match:
+        raise PagedrillRefusal("The office-symbol line could not be read. Pagedrill did not rebuild it from a guess.", "missing_field")
+    organization = next((text for text in texts if text.isupper() and text not in {"DEPARTMENT OF THE ARMY"} and not text.startswith("[") and "," not in text and len(text.split()) <= 8), "")
+    if not organization:
+        raise PagedrillRefusal("The organization line was not in the memorandum. Pagedrill did not invent it.", "missing_field")
+    body = []
+    for text in texts:
+        labeled = re.match(r"^(?:\d+\.|[a-z]\.|\(\d+\))  (.+)$", text)
+        if not labeled:
+            continue
+        level, _bare = _classify_body(text)
+        prose = labeled.group(1)
+        body.append({"level": level, "text": prose, "rendered": prose, "original": text})
+    signature_lines = [paragraph.text for paragraph in paragraphs if paragraph.text.strip() and abs((paragraph.paragraph_format.left_indent or 0) - Inches(3.25)) < 20000]
+    if len(signature_lines) < 3:
+        raise PagedrillRefusal("The signature block was not in the memorandum. Pagedrill did not invent it.", "missing_field")
+    rank_line = signature_lines[1]
+    rank_match = re.match(r"^([^,]+),\s*(.*)$", rank_line)
+    if not rank_match:
+        raise PagedrillRefusal("The rank line could not be read. Pagedrill did not guess a rank.", "missing_field")
+    branch_text = rank_match.group(2)
+    branch_abbrev = None
+    branch = branch_text
+    placeholder = re.match(r"\[branch abbrev\.: (.+)\]", branch_text)
+    if placeholder:
+        branch = placeholder.group(1)
+        branch_abbrev = None
+    else:
+        branch_abbrev = branch_text
+        branch = branch_text
+    arims = match.group(2)
+    meta = {"office_symbol": match.group(1), "memo_for": memo_for, "subject": subject, "from_line": office}
+    if "ARIMS record no." not in arims:
+        meta["arims"] = arims
+    if branch_abbrev:
+        meta["branch_abbrev"] = branch_abbrev
+    signature = {
+        "name": signature_lines[0],
+        "rank": rank_match.group(1),
+        "abbrev": rank_match.group(1),
+        "branch": branch,
+        "title": signature_lines[2],
+    }
+    document = Document(BytesIO(original))
+    _prepare(document, profile)
+    _clear_body(document)
+    _write(document, profile, organization, meta, match.group(3), subject_case(subject), body, signature, None, None, None, log, flag)
+    if supplied.get("track_changes"):
+        apply_tracked_changes(document, changes)
+    fresh = BytesIO()
+    document.save(fresh)
+    data, verification = splice_allowed(original, fresh.getvalue())
+    return {"docx": data, "changes": changes, "flags": flags, "verification": verification, "title": subject, "notice": MILITARY_NOTICE}

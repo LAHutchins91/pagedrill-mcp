@@ -12,7 +12,9 @@ from docx.oxml.ns import qn
 from docx.shared import Inches, Pt, RGBColor
 
 from .errors import PagedrillRefusal
+from .fields import add_toc_field
 from .packageio import splice_allowed
+from .revisions import apply_tracked_changes
 from .words import assert_apa_body_words
 
 MINOR = {"a", "an", "the", "and", "as", "but", "for", "if", "nor", "or", "so", "yet", "at", "by", "in", "of", "off", "on", "per", "to", "up", "via"}
@@ -429,7 +431,9 @@ def format_apa(original: bytes, profile: dict, supplied: dict | None = None) -> 
     _prepare_section(document, profile)
     _write_header(document, profile, title or "", supplied, flag, log, professional)
     _clear_body(document)
-    _write_body(document, profile, title or "", meta, body, rendered, professional, flag, log)
+    _write_body(document, profile, title or "", meta, body, rendered, professional, flag, log, bool(supplied.get("table_of_contents")))
+    if supplied.get("track_changes"):
+        apply_tracked_changes(document, changes)
     fresh = BytesIO()
     document.save(fresh)
     data, verification = splice_allowed(original, fresh.getvalue())
@@ -572,7 +576,7 @@ def _add_paragraph(document, profile, text="", align="left", bold=False, italic=
     return paragraph
 
 
-def _write_body(document, profile, title, meta, body, rendered, professional, flag, log) -> None:
+def _write_body(document, profile, title, meta, body, rendered, professional, flag, log, table_of_contents: bool = False) -> None:
     title_page = profile["title_page"]
     for _ in range(title_page["blank_lines_before_title"]):
         _add_paragraph(document, profile, indent=False)
@@ -615,6 +619,14 @@ def _write_body(document, profile, title, meta, body, rendered, professional, fl
             if meta.get(key):
                 log("title-page-label-removed", f"{label} {meta[key]}", meta[key], title_page["src"])
     document.paragraphs[-1].add_run().add_break(WD_BREAK.PAGE)
+    if table_of_contents:
+        toc = _add_paragraph(document, profile, "", "left", indent=False)
+        add_toc_field(toc)
+        flag(
+            "Table of contents",
+            "A Word TOC field was inserted because you asked for one. Word fills it from heading styles. Pagedrill did not type the entries.",
+            profile.get("order_src") or profile["title_page"]["src"],
+        )
     _add_paragraph(document, profile, title, "center", bold=True, indent=False)
     index = 0
     while index < len(body):

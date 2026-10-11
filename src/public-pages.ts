@@ -13,7 +13,7 @@ export function homePage(billingReady: boolean): string {
 <p>Format a .docx paper or memo to a verified style from ChatGPT, Claude, Cursor, or Grok. Every rule cites its official source. Missing affiliation, DOI, date, letterhead, and record numbers are flagged, not invented.</p>
 <p>${MILITARY}</p>
 <p>${billingReady ? "A 14-day trial does not require a card. Stripe shows the amount before you pay. After the trial, Pro continues only if a payment method is on file." : "Billing is not configured on this host yet. Stripe Checkout is used once STRIPE_PRODUCT_ID, STRIPE_PRICE_MONTHLY, and STRIPE_PRICE_YEARLY are set. Pagedrill does not create those objects."}</p>
-<p>Pro includes 60 formatted documents and 120 previews each month, with files up to 25 MB. The same caps apply during the trial. check_document is free and rate-limited. Files are deleted 24 hours after last use. File contents are not written to logs and are not used for training.</p>
+<p>Without a trial or Pro subscription, check_document stays available and one fully formatted download is included each month. Pro includes 60 formatted documents and 120 previews each month, with files up to 25 MB. The same caps apply during the trial. Files are deleted 24 hours after last use. File contents are not written to logs and are not used for training.</p>
 <p><a href="/privacy">Privacy</a> · <a href="/terms">Terms</a> · <a href="/support">Support</a> · <a href="mailto:ouroborosplugins@gmail.com">ouroborosplugins@gmail.com</a></p>`
   );
 }

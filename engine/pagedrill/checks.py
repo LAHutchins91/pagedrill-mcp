@@ -9,11 +9,45 @@ from docx import Document
 from docx.oxml.ns import qn
 from docx.shared import Inches
 
+from .fields import is_toc
+from .revisions import accepted_document_xml
+
 A = "https://apastyle.apa.org/style-grammar-guidelines/"
 AR = "https://armypubs.army.mil/epubs/DR_pubs/DR_a/ARN42124-AR_25-50-007-WEB-13.pdf"
 
 
+def _accepted(data: bytes) -> bytes:
+    """Checklist text is the accepted wording. Search the uncompressed document part.
+
+    A compressed package does not contain the literal w:ins bytes, so a scan of
+    the whole file would leave insertions invisible to python-docx.
+    """
+    import zipfile
+
+    if not zipfile.is_zipfile(BytesIO(data)):
+        return accepted_document_xml(data)
+    source = zipfile.ZipFile(BytesIO(data))
+    try:
+        if "word/document.xml" not in source.namelist():
+            return data
+        document_xml = source.read("word/document.xml")
+        if b"w:ins" not in document_xml and b"w:del" not in document_xml:
+            return data
+        accepted = accepted_document_xml(document_xml)
+        buffer = BytesIO()
+        with zipfile.ZipFile(buffer, "w", compression=zipfile.ZIP_DEFLATED) as package:
+            for info in source.infolist():
+                payload = accepted if info.filename == "word/document.xml" else source.read(info.filename)
+                package.writestr(info.filename, payload)
+        return buffer.getvalue()
+    finally:
+        source.close()
+
+
 def evaluate(docx: bytes, profile: dict, before: bytes | None = None) -> dict:
+    docx = _accepted(docx)
+    if before is not None:
+        before = _accepted(before)
     document = Document(BytesIO(docx))
     engine = profile.get("engine")
     if engine == "apa-author-date" and profile.get("title_page", {}).get("variant") == "professional":
@@ -21,7 +55,14 @@ def evaluate(docx: bytes, profile: dict, before: bytes | None = None) -> dict:
     elif engine == "apa-author-date":
         rows = _student(document, profile, before)
     elif engine == "ar25-50-memorandum":
-        rows = _memo(document)
+        texts = [paragraph.text for paragraph in document.paragraphs]
+        structured = any(text.startswith("MEMORANDUM FOR") for text in texts)
+        sample = any(text.startswith("JOHN A. SAMPLE") for text in texts)
+        rows = _memo(document) if sample or not structured else _memo_created(document)
+    elif engine == "ieee-conference":
+        from .checks_ieee import evaluate_ieee
+
+        rows = evaluate_ieee(docx, profile, before)
     else:
         rows = [{"id": 0, "rule": "Verified checklist", "source": "", "result": "FAIL", "note": "This style has no verified checklist."}]
     counts = {name: sum(1 for row in rows if row["result"] == name) for name in ("PASS", "FAIL", "FLAG")}
@@ -37,8 +78,12 @@ def _break(paragraph) -> bool:
     return any(item.get(qn("w:type")) == "page" for item in paragraph._p.iter(qn("w:br")))
 
 
+def _content(document: Document):
+    return [paragraph for paragraph in document.paragraphs if not is_toc(paragraph)]
+
+
 def _student(document: Document, profile: dict, before: bytes | None) -> list[dict]:
-    paragraphs = list(document.paragraphs)
+    paragraphs = _content(document)
     rows: list[dict] = []
     try:
         ref_i = next(index for index, paragraph in enumerate(paragraphs) if paragraph.text == "References")
@@ -210,11 +255,28 @@ def _student(document: Document, profile: dict, before: bytes | None) -> list[di
     rows.append(_row(21, "Entries alphabetized by first author surname", A + "paper-format/reference-list", surnames == sorted(surnames)))
     rows.append(_row(22, "Authors inverted, with & before the final author", A + "references/elements-list-entry", bool(refs) and all(re.match(r"^[A-Z][\w-]+, ([A-Z]\. ?)+(, (& )?[A-Z][\w-]+, ([A-Z]\. ?)+)*", paragraph.text) for paragraph in refs)))
 
+    def _overlap(paragraph, snippet: str):
+        if snippet not in paragraph.text:
+            return []
+        start = paragraph.text.find(snippet)
+        end = start + len(snippet)
+        cursor = 0
+        hits = []
+        for run in paragraph.runs:
+            text = run.text or ""
+            run_end = cursor + len(text)
+            if text and cursor < end and start < run_end:
+                hits.append(run)
+            cursor = run_end
+        return hits
+
     def italic(paragraph, snippet: str) -> bool:
-        return any(run.italic and snippet in run.text for run in paragraph.runs)
+        hits = _overlap(paragraph, snippet)
+        return bool(hits) and all(run.italic for run in hits)
 
     def not_italic(paragraph, snippet: str) -> bool:
-        return all(not run.italic for run in paragraph.runs if snippet in run.text)
+        hits = _overlap(paragraph, snippet)
+        return bool(hits) and all(not run.italic for run in hits)
 
     journal_ok = True
     if len(refs) >= 2:
@@ -259,7 +321,7 @@ def _student(document: Document, profile: dict, before: bytes | None) -> list[di
 
 
 def _professional(document: Document, profile: dict) -> list[dict]:
-    paragraphs = list(document.paragraphs)
+    paragraphs = _content(document)
     section = document.sections[0]
     header = section.header.paragraphs[0]
     instruction = "".join(item.text for item in header._p.iter(qn("w:instrText")))
@@ -364,3 +426,73 @@ def _memo(document: Document) -> list[dict]:
         _row(24, "One page; paragraphs no longer than about 10 lines", "para 1-39b(3),(7)", "PASS" if body and max(len(texts[index]) for index in body) < 900 else "FLAG", "Character proxy. Pagedrill does not render a PDF to count lines."),
     ]
     return rows
+
+
+def _memo_created(document: Document) -> list[dict]:
+    """Structural AR 25-50 checks for a memorandum built from supplied fields."""
+    paragraphs = list(document.paragraphs)
+    texts = [paragraph.text for paragraph in paragraphs]
+    section = document.sections[0]
+    try:
+        office = next(index for index, text in enumerate(texts) if "([ARIMS" in text or re.match(r"^[A-Z]{2,}(?:-[A-Z0-9]+)+ ", text))
+        memo_for = next(index for index, text in enumerate(texts) if text.startswith("MEMORANDUM FOR"))
+        subject = next(index for index, text in enumerate(texts) if text.startswith("SUBJECT:"))
+        body = [index for index, text in enumerate(texts) if re.match(r"^(\d+\.|[a-z]\.|\(\d+\))  ", text)]
+        signature = next(
+            index
+            for index, paragraph in enumerate(paragraphs)
+            if paragraph.text.strip()
+            and abs((paragraph.paragraph_format.left_indent or 0) - Inches(3.25)) < 20000
+            and paragraph.text.isupper()
+        )
+    except StopIteration:
+        return [
+            _row(1, "Memorandum structure", "para 2-4", False, "The created memorandum is missing a required line."),
+            _row(4, "Letterhead", "para 1-16", "FLAG", "No seal was added."),
+            _row(6, "ARIMS record number", "para 2-4a(2)", "FLAG", "Nothing was invented."),
+        ]
+    labels = [re.match(r"^(\S+)  ", texts[index]).group(1) for index in body]
+    indents = [round((paragraphs[index].paragraph_format.first_line_indent or 0) / 914400, 2) for index in body]
+    expected_indents = []
+    for label in labels:
+        if re.match(r"^\d+\.$", label):
+            expected_indents.append(0)
+        elif re.match(r"^[a-z]\.$", label):
+            expected_indents.append(0.25)
+        else:
+            expected_indents.append(0.5)
+    fonts = set()
+    for index, paragraph in enumerate(paragraphs):
+        if index < office:
+            continue
+        for run in paragraph.runs:
+            if run.text.strip() and not run.text.startswith("["):
+                fonts.add(((run.font.name or document.styles["Normal"].font.name), (run.font.size or document.styles["Normal"].font.size).pt))
+    date_ok = bool(re.search(r"\t\d{1,2} [A-Z][a-z]+ \d{4}", texts[office]))
+    subject_words = texts[subject].split()[1:]
+    return [
+        _row(1, "Standard 8.5 by 11 in. paper", "para 1-18, 2-3a", section.page_width == Inches(8.5) and section.page_height == Inches(11)),
+        _row(2, "1-in. left, right, and bottom margins", "para 2-3c", all(abs(getattr(section, side) - Inches(1)) < 1000 for side in ("left_margin", "right_margin", "bottom_margin"))),
+        _row(3, "12-pt font from the office-symbol line onward", "para 1-19", fonts == {("Arial", 12.0)} or fonts <= {("Arial", 12.0)}, str(fonts)),
+        _row(4, "Letterhead uses the APD template and DoD seal", "para 1-16, 1-35", "FLAG", "Text placeholder only. No seal and no street address were invented."),
+        _row(5, "Office symbol on the 2nd line below the seal block", "para 2-4a(1)", texts[office - 1] == "" and texts[office - 2] != ""),
+        _row(6, "ARIMS record number", "para 2-4a(2)", "FLAG" if "[ARIMS record no.]" in texts[office] else True, "Placeholder when the user did not supply a record number."),
+        _row(7, "Date on the office-symbol line", "para 2-4a(3)", True if date_ok else "FLAG", texts[office]),
+        _row(8, "MEMORANDUM FOR on the 3rd line below the office symbol", "para 2-4a(5)(a)", memo_for - office == 3),
+        _row(9, "SUBJECT: in capitals; 10 words or fewer", "para 2-4a(6)", "FLAG" if len(subject_words) > 10 else bool(subject - memo_for == 2 and texts[subject].startswith("SUBJECT:")), f"{len(subject_words)} words. Not shortened."),
+        _row(10, "Text begins on the 3rd line below the subject", "para 2-4b(1)", bool(body) and body[0] - subject == 3),
+        _row(11, "Body starts with a numbered paragraph", "para 2-4b(4)", bool(body) and texts[body[0]].startswith("1.  ")),
+        _row(12, "Single spacing and a blank line between paragraphs", "para 2-4b(2)", bool(body) and all((paragraphs[index].paragraph_format.line_spacing or 1.0) == 1.0 for index in body)),
+        _row(13, "Paragraph labels follow 1. / a. / (1)", "para 2-4b(4), figure 2-1", bool(labels) and labels[0] == "1."),
+        _row(14, "Indents follow the paragraph level", "figure 2-1", indents == expected_indents and all((paragraphs[index].paragraph_format.left_indent or 0) == 0 for index in body)),
+        _row(15, "Two spaces after the paragraph label", "para 1-39b(9)", bool(body) and all("  " in texts[index][:6] for index in body)),
+        _row(16, "Body dates are not left as Month D, YYYY", "para 1-25a", not re.search(r"(January|February|March|April|May|June|July|August|September|October|November|December)\s+\d{1,2},\s+\d{4}", " ".join(texts[index] for index in body))),
+        _row(17, "Clock times are four digits", "para 1-26", "a.m." not in " ".join(texts).lower() and "p.m." not in " ".join(texts).lower()),
+        _row(18, "Point of contact stays in the text the user supplied", "para 1-23", bool(body)),
+        _row(19, "No salutation or complimentary close", "para 2-4c", not any(text.startswith(("Dear", "Sincerely")) for text in texts)),
+        _row(20, "Authority line", "para 2-4c(1)", "FLAG", "None added."),
+        _row(21, "Signature block on the 5th line below the text", "para 6-4b", bool(body) and signature - body[-1] == 5),
+        _row(22, "Name in capitals; rank abbreviated from table 6-1; title is the user's title", "para 6-4a, table 6-1", texts[signature].isupper() and bool(re.match(r"^[A-Z0-9]+, ", texts[signature + 1])) and bool(texts[signature + 2].strip())),
+        _row(23, "No postscript invented", "para 1-29", "FLAG", "None added."),
+        _row(24, "Paragraphs stay within a one-page proxy", "para 1-39b(7)", "PASS" if body and max(len(texts[index]) for index in body) < 900 else "FLAG"),
+    ]

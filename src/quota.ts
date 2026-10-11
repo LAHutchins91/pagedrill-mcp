@@ -4,8 +4,17 @@ import { ToolError } from "./errors.js";
 /** 25 MB as 25 × 1024 × 1024 bytes. */
 export const DEFAULT_MAX_FILE_BYTES = 25 * 1024 * 1024;
 
-export type PlanTier = "pro" | "trial";
+export type PlanTier = "pro" | "trial" | "free";
 export type UsageMetric = "formats" | "previews" | "files" | "checks";
+export type UsageCounts = {
+  formats: number;
+  previews: number;
+  files: number;
+  checks: number;
+  free_formats: number;
+  free_previews: number;
+  free_files: number;
+};
 
 export type PlanCaps = {
   formats: number;
@@ -14,20 +23,35 @@ export type PlanCaps = {
   maxFileBytes: number;
 };
 
-export type UsageCounts = Record<UsageMetric, number>;
-
 /**
- * Trial and Pro share these caps unless an operator sets a different env value.
+ * Trial and Pro share the higher caps. An account that is not trialing or Pro
+ * is the free tier: the check report, plus one fully formatted download a month.
  * check_document is not one of these caps. Past a cap, the call is refused.
+ * Free counters are stored separately so earlier trial use does not spend them.
  */
 export function planCaps(tier: PlanTier): PlanCaps {
-  void tier;
+  const maxFileBytes = intEnv("PAGEDRILL_CAP_MAX_BYTES", DEFAULT_MAX_FILE_BYTES);
+  if (tier === "free") {
+    return {
+      formats: intEnv("PAGEDRILL_CAP_FREE_FORMATS", 1),
+      previews: intEnv("PAGEDRILL_CAP_FREE_PREVIEWS", 2),
+      files: intEnv("PAGEDRILL_CAP_FREE_FILES", 5),
+      maxFileBytes
+    };
+  }
   return {
     formats: intEnv("PAGEDRILL_CAP_FORMATS", 60),
     previews: intEnv("PAGEDRILL_CAP_PREVIEWS", 120),
     files: intEnv("PAGEDRILL_CAP_FILES", 120),
-    maxFileBytes: intEnv("PAGEDRILL_CAP_MAX_BYTES", DEFAULT_MAX_FILE_BYTES)
+    maxFileBytes
   };
+}
+
+export function countKey(tier: PlanTier, metric: Exclude<UsageMetric, "checks">): keyof UsageCounts {
+  if (tier !== "free") return metric;
+  if (metric === "formats") return "free_formats";
+  if (metric === "previews") return "free_previews";
+  return "free_files";
 }
 
 export function monthKey(now = new Date()): string {
@@ -74,7 +98,7 @@ export function tierFor(profile: { subscription_status: string; plan: string }):
   if (profile.subscription_status === "active" || profile.subscription_status === "trialing") {
     return profile.subscription_status === "active" ? "pro" : "trial";
   }
-  return "trial";
+  return "free";
 }
 
 export function entitled(profile: { subscription_status: string }): boolean {
@@ -86,16 +110,19 @@ export function expiryFrom(lastUsedAt: string, hours = 24): string {
 }
 
 export function emptyUsage(): UsageCounts {
-  return { formats: 0, previews: 0, files: 0, checks: 0 };
+  return { formats: 0, previews: 0, files: 0, checks: 0, free_formats: 0, free_previews: 0, free_files: 0 };
+}
+
+export function normalizeUsage(counts: Partial<UsageCounts> | undefined): UsageCounts {
+  return { ...emptyUsage(), ...counts };
 }
 
 export function usageView(tier: PlanTier, counts: UsageCounts, now = new Date()) {
   const caps = planCaps(tier);
-  const metric = (name: Exclude<UsageMetric, "checks">) => ({
-    used: counts[name],
-    cap: caps[name],
-    remaining: Math.max(0, caps[name] - counts[name])
-  });
+  const metric = (name: Exclude<UsageMetric, "checks">) => {
+    const used = counts[countKey(tier, name)] ?? 0;
+    return { used, cap: caps[name], remaining: Math.max(0, caps[name] - used) };
+  };
   return {
     tier,
     month: monthKey(now),

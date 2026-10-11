@@ -21,7 +21,7 @@ export function installPluginAuth(app: Express, baseUrl: string, supabaseAuthUrl
     res.type("html").send(`<!doctype html><html lang="en"><head><meta charset="utf-8"><title>Connect Pagedrill</title></head><body>
 <main><h1>Connect Pagedrill</h1>
 <p>Sign in with the host's Supabase project, then approve the assistant. Pagedrill can format the .docx files you send, keep versions for undo, and read whether your trial or Pro subscription is active.</p>
-<p>check_document stays available without a subscription and is rate-limited. propose_format and apply_format need an active trial or Pro subscription.</p>
+<p>check_document stays available without a subscription and is rate-limited. That account also gets one fully formatted download a month. A trial or Pro subscription raises the monthly caps. There is no overage charge.</p>
 <p><a href="/">Back</a></p></main></body></html>`);
   });
 }

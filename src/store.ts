@@ -4,7 +4,7 @@ import path from "node:path";
 import { dataDir, DEV_USER_ID, useSupabaseStore } from "./config.js";
 import { supabaseStore, type SupabaseStore } from "./supabase-store.js";
 import { ToolError } from "./errors.js";
-import { emptyUsage, entitled, expiryFrom, monthKey, planCaps, QuotaError, tierFor, usageView, type PlanTier, type UsageCounts, type UsageMetric } from "./quota.js";
+import { countKey, emptyUsage, expiryFrom, monthKey, normalizeUsage, planCaps, QuotaError, tierFor, usageView, type PlanTier, type UsageCounts, type UsageMetric } from "./quota.js";
 
 export type Profile = {
   id: string;
@@ -164,23 +164,32 @@ export class LocalStore {
     const profile = await this.getProfile(ownerId);
     if (!profile) throw new ToolError("Account not found.", "not_found");
     const tier = tierFor(profile);
-    const counts = load().usage[`${ownerId}:${monthKey(now)}`] ?? emptyUsage();
+    const counts = normalizeUsage(load().usage[`${ownerId}:${monthKey(now)}`]);
     return usageView(tier, counts, now);
   }
 
   private consume(state: State, ownerId: string, metric: Exclude<UsageMetric, "checks">, tier: PlanTier, now: Date) {
     const key = `${ownerId}:${monthKey(now)}`;
-    const counts = state.usage[key] ?? emptyUsage();
+    const counts = normalizeUsage(state.usage[key]);
+    const stored = countKey(tier, metric);
     const cap = planCaps(tier)[metric];
-    if (counts[metric] >= cap) throw new QuotaError(metric, counts[metric], cap, tier, now);
-    counts[metric] += 1;
+    if (counts[stored] >= cap) throw new QuotaError(metric, counts[stored], cap, tier, now);
+    counts[stored] += 1;
     state.usage[key] = counts;
+  }
+
+  async charge(ownerId: string, metric: Exclude<UsageMetric, "checks">, now = new Date()): Promise<void> {
+    const profile = await this.getProfile(ownerId);
+    if (!profile) throw new ToolError("Account not found.", "not_found");
+    const state = load();
+    this.consume(state, ownerId, metric, tierFor(profile), now);
+    save(state);
   }
 
   async noteCheck(ownerId: string, now = new Date()): Promise<void> {
     const state = load();
     const key = `${ownerId}:${monthKey(now)}`;
-    const counts = state.usage[key] ?? emptyUsage();
+    const counts = normalizeUsage(state.usage[key]);
     counts.checks += 1;
     state.usage[key] = counts;
     save(state);
@@ -188,7 +197,7 @@ export class LocalStore {
 
   async reserveUpload(ownerId: string, filename: string, now = new Date()) {
     const profile = await this.getProfile(ownerId);
-    if (!profile || !entitled(profile)) throw new ToolError("An active trial or Pro subscription is required.", "access");
+    if (!profile) throw new ToolError("Account not found.", "not_found");
     const state = load();
     this.consume(state, ownerId, "files", tierFor(profile), now);
     const fileId = crypto.randomUUID();
@@ -201,7 +210,7 @@ export class LocalStore {
 
   async commitNewFile(input: { ownerId: string; filename: string; kind: string; bytes: Buffer }, now = new Date()): Promise<SavedFile> {
     const profile = await this.getProfile(input.ownerId);
-    if (!profile || !entitled(profile)) throw new ToolError("An active trial or Pro subscription is required.", "access");
+    if (!profile) throw new ToolError("Account not found.", "not_found");
     const state = load();
     this.consume(state, input.ownerId, "files", tierFor(profile), now);
     const hash = writeBlob(input.bytes);
@@ -225,7 +234,7 @@ export class LocalStore {
 
   async commitReservedFile(input: { ownerId: string; fileId: string; filename: string; kind: string; bytes: Buffer; nonce: string }, now = new Date()): Promise<SavedFile> {
     const profile = await this.getProfile(input.ownerId);
-    if (!profile || !entitled(profile)) throw new ToolError("An active trial or Pro subscription is required.", "access");
+    if (!profile) throw new ToolError("Account not found.", "not_found");
     const state = load();
     const reserved = state.uploads[input.nonce];
     if (!reserved || reserved.ownerId !== input.ownerId || reserved.fileId !== input.fileId) {
@@ -282,7 +291,7 @@ export class LocalStore {
 
   async saveProposal(input: Omit<ProposalRow, "id" | "createdAt" | "expiresAt" | "appliedAt"> & { bytes: Buffer }, now = new Date()): Promise<ProposalRow> {
     const profile = await this.getProfile(input.ownerId);
-    if (!profile || !entitled(profile)) throw new ToolError("An active trial or Pro subscription is required.", "access");
+    if (!profile) throw new ToolError("Account not found.", "not_found");
     const state = load();
     const file = liveFile(state, input.ownerId, input.fileId, now);
     if (file.headSha !== input.baseSha) throw new ToolError("base_version does not match the current file. Propose the format again.", "stale_version");
@@ -321,7 +330,7 @@ export class LocalStore {
 
   async publishEdit(ownerId: string, proposalId: string, baseVersion: string, now = new Date()): Promise<SavedFile> {
     const profile = await this.getProfile(ownerId);
-    if (!profile || !entitled(profile)) throw new ToolError("An active trial or Pro subscription is required.", "access");
+    if (!profile) throw new ToolError("Account not found.", "not_found");
     const state = load();
     const proposal = state.proposals[proposalId];
     if (!proposal || proposal.ownerId !== ownerId) throw new ToolError("Proposal not found.", "not_found");

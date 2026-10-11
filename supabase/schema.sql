@@ -24,8 +24,15 @@ create table if not exists public.usage_monthly (
   previews integer not null default 0 check (previews >= 0),
   files integer not null default 0 check (files >= 0),
   checks integer not null default 0 check (checks >= 0),
+  free_formats integer not null default 0 check (free_formats >= 0),
+  free_previews integer not null default 0 check (free_previews >= 0),
+  free_files integer not null default 0 check (free_files >= 0),
   primary key (owner_id, month)
 );
+
+alter table public.usage_monthly add column if not exists free_formats integer not null default 0;
+alter table public.usage_monthly add column if not exists free_previews integer not null default 0;
+alter table public.usage_monthly add column if not exists free_files integer not null default 0;
 
 create table if not exists public.files (
   id uuid primary key,

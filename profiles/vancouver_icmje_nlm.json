@@ -1,0 +1,87 @@
+{
+  "id": "vancouver-icmje-nlm",
+  "name": "Vancouver (ICMJE Recommendations + NLM Sample References / Citing Medicine 2nd ed.) \u2014 citations and reference list",
+  "publisher": "ICMJE / U.S. National Library of Medicine",
+  "status": "NOT FULLY VERIFIED: NLM's Citing Medicine (the detailed rule book) could not be read from the box (NCBI reCAPTCHA); rules below come from ICMJE and NLM's Sample References page, and some are only attested by NLM examples",
+  "verified_on": "",
+  "sources": {
+    "icmje": "https://www.icmje.org/recommendations/browse/manuscript-preparation/preparing-for-submission.html (section g. References; copy: vanc_src/icmje_preparing.txt)",
+    "nlm_samples": "https://www.nlm.nih.gov/bsd/uniform_requirements.html (Samples of Formatted References for Authors of Journal Articles, last reviewed June 2, 2026; copy: vanc_src/nlm_sample_references.txt)",
+    "citing_medicine": "https://www.ncbi.nlm.nih.gov/books/NBK7256/ (Citing Medicine, 2nd ed.) \u2014 NOT READ: reCAPTCHA from the box, 403 via fetch tool",
+    "pubmed": "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/esummary.fcgi (PubMed records: MEDLINE journal abbreviation, volume, issue, pages, authors; results in vanc_src/pubmed_verification.json)"
+  },
+  "grades": {
+    "R": "rule text read in ICMJE or on NLM's Sample References page",
+    "X": "attested only by NLM sample references (Citing Medicine rule text not read)",
+    "U": "journal/instructor-dependent: flag, never guess"
+  },
+  "layout": {
+    "policy": "untouched: ICMJE gives no page-layout rules (font, spacing, margins, title page) and says to follow the target journal's instructions",
+    "grade": "U"
+  },
+  "citations": {
+    "form": "Arabic numerals in parentheses, e.g. (1)",
+    "grade": "R (ICMJE)",
+    "order": "numbered consecutively in order of first mention (ICMJE)",
+    "multiple": "(1, 4): separator and range style are not specified by ICMJE -> flagged",
+    "placement": "left where the author typed the citation (not specified) -> no change"
+  },
+  "references": {
+    "authors": {
+      "format": "Surname + initials without periods or spaces (Halpern SD)",
+      "separator": ", ",
+      "end": ". ",
+      "max_listed": 6,
+      "more_than_six": "first six, then 'et al.'",
+      "grade": "R (Sample References #1 text: 'List the first six authors, followed by et al.')"
+    },
+    "title": {
+      "case": "sentence case; lowercase after a colon; acronyms and proper nouns kept (examples)",
+      "grade": "X",
+      "end": ". "
+    },
+    "journal": {
+      "abbrev": "MEDLINE abbreviation (ICMJE: 'abbreviated according to the style used for MEDLINE'); taken from the PubMed record (source field), never guessed",
+      "punct": "no periods inside the abbreviation; '. ' after it",
+      "grade": "R"
+    },
+    "date": {
+      "format": "year[ Mon[ day]]; three-letter month without a period (2002 Jul 25)",
+      "grade": "X"
+    },
+    "volume_issue_pages": {
+      "format": ";volume(issue):pages.",
+      "pages": "elided: repeated leading digits dropped (284-7, 40-6, 2257-61) \u2014 rule detail is in Citing Medicine",
+      "grade": "X"
+    },
+    "doi": {
+      "format": " doi: 10.xxxx/xxxx.",
+      "grade": "R (Sample References, optional MEDLINE format, 'Article with a Digital Object Identifier')"
+    },
+    "book": {
+      "format": "Authors. Title. Edition. Place: Publisher; year.",
+      "grade": "X (#19)"
+    },
+    "list_numbering": {
+      "format": "1. 2. 3. as plain text numbers with hanging indent",
+      "grade": "U (neither ICMJE nor the Sample References page shows how the list itself is numbered)"
+    }
+  },
+  "months": {
+    "January": "Jan",
+    "February": "Feb",
+    "March": "Mar",
+    "April": "Apr",
+    "May": "May",
+    "June": "Jun",
+    "July": "Jul",
+    "August": "Aug",
+    "September": "Sep",
+    "October": "Oct",
+    "November": "Nov",
+    "December": "Dec"
+  },
+  "engine": "vancouver",
+  "checklist_verified": false,
+  "hidden": true
+}
