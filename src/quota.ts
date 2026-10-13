@@ -14,6 +14,8 @@ export type UsageCounts = {
   free_formats: number;
   free_previews: number;
   free_files: number;
+  check_window_start: string | null;
+  check_window_count: number;
 };
 
 export type PlanCaps = {
@@ -25,16 +27,17 @@ export type PlanCaps = {
 
 /**
  * Trial and Pro share the higher caps. An account that is not trialing or Pro
- * is the free tier: the check report, plus one fully formatted download a month.
- * check_document is not one of these caps. Past a cap, the call is refused.
- * Free counters are stored separately so earlier trial use does not spend them.
+ * is the free tier: the check report only. Formatted downloads and previews
+ * are not included. check_document is not one of these caps. Past a cap, the
+ * call is refused. Free counters are stored separately so earlier trial use
+ * does not spend the free file allowance.
  */
 export function planCaps(tier: PlanTier): PlanCaps {
   const maxFileBytes = intEnv("PAGEDRILL_CAP_MAX_BYTES", DEFAULT_MAX_FILE_BYTES);
   if (tier === "free") {
     return {
-      formats: intEnv("PAGEDRILL_CAP_FREE_FORMATS", 1),
-      previews: intEnv("PAGEDRILL_CAP_FREE_PREVIEWS", 2),
+      formats: intEnv("PAGEDRILL_CAP_FREE_FORMATS", 0),
+      previews: intEnv("PAGEDRILL_CAP_FREE_PREVIEWS", 0),
       files: intEnv("PAGEDRILL_CAP_FREE_FILES", 5),
       maxFileBytes
     };
@@ -47,7 +50,10 @@ export function planCaps(tier: PlanTier): PlanCaps {
   };
 }
 
-export function countKey(tier: PlanTier, metric: Exclude<UsageMetric, "checks">): keyof UsageCounts {
+export function countKey(
+  tier: PlanTier,
+  metric: Exclude<UsageMetric, "checks">
+): "formats" | "previews" | "files" | "free_formats" | "free_previews" | "free_files" {
   if (tier !== "free") return metric;
   if (metric === "formats") return "free_formats";
   if (metric === "previews") return "free_previews";
@@ -110,7 +116,17 @@ export function expiryFrom(lastUsedAt: string, hours = 24): string {
 }
 
 export function emptyUsage(): UsageCounts {
-  return { formats: 0, previews: 0, files: 0, checks: 0, free_formats: 0, free_previews: 0, free_files: 0 };
+  return {
+    formats: 0,
+    previews: 0,
+    files: 0,
+    checks: 0,
+    free_formats: 0,
+    free_previews: 0,
+    free_files: 0,
+    check_window_start: null,
+    check_window_count: 0
+  };
 }
 
 export function normalizeUsage(counts: Partial<UsageCounts> | undefined): UsageCounts {
@@ -135,17 +151,20 @@ export function usageView(tier: PlanTier, counts: UsageCounts, now = new Date())
   };
 }
 
-const checkHits = new Map<string, { count: number; end: number }>();
+/** check_document calls: 30 per hour per account. Stored with the monthly row, not in process memory. */
+export const CHECK_LIMIT = 30;
+export const CHECK_WINDOW_MS = 3_600_000;
 
-/** Free check_document calls: 30 per hour per account. This is not the format cap. */
-export function allowCheck(key: string, now = Date.now()): boolean {
-  for (const [name, value] of checkHits) if (value.end <= now) checkHits.delete(name);
-  const value = checkHits.get(key);
-  if (value) {
-    value.count += 1;
-    return value.count <= 30;
+export function nextCheckWindow(
+  start: string | null,
+  count: number,
+  now: Date
+): { allow: boolean; start: string; count: number } {
+  const nowMs = now.getTime();
+  const startMs = start ? Date.parse(start) : Number.NaN;
+  if (!start || Number.isNaN(startMs) || nowMs - startMs >= CHECK_WINDOW_MS) {
+    return { allow: true, start: now.toISOString(), count: 1 };
   }
-  if (checkHits.size >= 10000) return false;
-  checkHits.set(key, { count: 1, end: now + 3_600_000 });
-  return true;
+  const next = count + 1;
+  return { allow: next <= CHECK_LIMIT, start, count: next };
 }

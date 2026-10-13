@@ -143,8 +143,9 @@ describe("MCP", () => {
     expect((refused.data.error as { code: string }).code).toBe("style_not_selectable");
     const styles = await call("list_styles", {});
     const ids = ((styles.data.styles as { id: string }[]) ?? []).map((item) => item.id);
-    expect(ids).toContain("ieee-conference-letter");
-    expect(ids).toContain("vancouver-icmje-nlm");
+    expect(ids).toEqual(expect.arrayContaining(["apa7-student", "apa7-professional", "army-ar25-50-memorandum"]));
+    expect(ids).not.toContain("ieee-conference-letter");
+    expect(ids).not.toContain("vancouver-icmje-nlm");
     expect(ids).not.toContain("mla9-research-paper");
   });
 
@@ -167,8 +168,15 @@ describe("MCP", () => {
   });
 
   it("imports references without inventing fields and creates a memorandum that undo can restore", async () => {
-    const imported = await call("import_references", {
+    const hidden = await call("import_references", {
       style_id: "ieee-conference-letter",
+      format: "bib",
+      text: `@article{smith2020,\n  author = {Smith, Ada B.},\n  title = {A short title about displays},\n  journal = {Applied Physics Letters},\n  year = {2020},\n  volume = {10}\n}\n`
+    });
+    expect(hidden.isError).toBe(true);
+    expect((hidden.data.error as { code: string }).code).toBe("style_not_selectable");
+    const imported = await call("import_references", {
+      style_id: "apa7-student",
       format: "bib",
       text: `@article{smith2020,\n  author = {Smith, Ada B.},\n  title = {A short title about displays},\n  journal = {Applied Physics Letters},\n  year = {2020},\n  volume = {10}\n}\n`
     });
@@ -198,21 +206,14 @@ describe("MCP", () => {
     expect(undone.data.sha256).toBe(created.data.sha256);
   });
 
-  it("keeps the check report and one formatted download without a subscription", async () => {
+  it("keeps the check report and blocks formatted downloads without a subscription", async () => {
     const original = fs.readFileSync(path.join(repoRoot(), "samples/apa_before.docx"));
     const saved = await upload("again.docx", original);
-    const secondFile = await upload("again-two.docx", original);
     await getStore().updateProfile(DEV_USER_ID, { subscription_status: "canceled", plan: "trial" });
     const checked = await call("check_document", { file_id: String(saved.file_id), style_id: "apa7-student" });
     expect(checked.status).toBe(200);
     expect(checked.isError, checked.text).toBe(false);
-    const first = await call("propose_format", { file_id: saved.file_id, style_id: "apa7-student" });
-    expect(first.isError, first.text).toBe(false);
-    const applied = await call("apply_format", { proposal_id: first.data.proposal_id, base_version: first.data.base_version });
-    expect(applied.isError, applied.text).toBe(false);
-    const second = await call("propose_format", { file_id: secondFile.file_id, style_id: "apa7-student" });
-    expect(second.isError, second.text).toBe(false);
-    const blocked = await call("apply_format", { proposal_id: second.data.proposal_id, base_version: second.data.base_version });
+    const blocked = await call("propose_format", { file_id: saved.file_id, style_id: "apa7-student" });
     expect(blocked.isError).toBe(true);
     expect((blocked.data.error as { code: string }).code).toBe("usage_cap");
     await getStore().updateProfile(DEV_USER_ID, { subscription_status: "trialing", plan: "trial" });

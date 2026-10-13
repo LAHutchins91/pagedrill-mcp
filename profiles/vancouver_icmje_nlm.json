@@ -102,5 +102,5 @@
   },
   "engine": "vancouver",
   "checklist_verified": true,
-  "hidden": false
+  "hidden": true
 }

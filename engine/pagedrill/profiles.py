@@ -34,6 +34,8 @@ def load_profiles() -> list[dict]:
 
 
 def is_selectable(profile: dict) -> bool:
+    if profile.get("hidden") is True:
+        return False
     status = str(profile.get("status") or "")
     sources = profile.get("sources")
     return bool(
@@ -57,6 +59,8 @@ def get_profile(style_id: str) -> dict:
 def require_selectable(style_id: str) -> dict:
     profile = get_profile(style_id)
     if not profile["selectable"]:
+        if profile.get("hidden") is True and profile.get("checklist_verified") is True:
+            raise PagedrillRefusal("That style is not available to select.", "style_not_selectable")
         raise PagedrillRefusal(
             "That style does not have a fully verified checklist, so it cannot be selected.",
             "style_not_selectable",

@@ -4,7 +4,7 @@ import path from "node:path";
 import { dataDir, DEV_USER_ID, useSupabaseStore } from "./config.js";
 import { supabaseStore, type SupabaseStore } from "./supabase-store.js";
 import { ToolError } from "./errors.js";
-import { countKey, emptyUsage, expiryFrom, monthKey, normalizeUsage, planCaps, QuotaError, tierFor, usageView, type PlanTier, type UsageCounts, type UsageMetric } from "./quota.js";
+import { countKey, expiryFrom, monthKey, nextCheckWindow, normalizeUsage, planCaps, QuotaError, tierFor, usageView, type PlanTier, type UsageCounts, type UsageMetric } from "./quota.js";
 
 export type Profile = {
   id: string;
@@ -187,12 +187,27 @@ export class LocalStore {
   }
 
   async noteCheck(ownerId: string, now = new Date()): Promise<void> {
+    if (!ownerId) return;
     const state = load();
     const key = `${ownerId}:${monthKey(now)}`;
     const counts = normalizeUsage(state.usage[key]);
     counts.checks += 1;
     state.usage[key] = counts;
     save(state);
+  }
+
+  /** Hourly check_document window for one account. An empty owner is refused and is not written. */
+  async allowCheck(ownerId: string, now = new Date()): Promise<boolean> {
+    if (!ownerId) return false;
+    const state = load();
+    const key = `${ownerId}:${monthKey(now)}`;
+    const counts = normalizeUsage(state.usage[key]);
+    const next = nextCheckWindow(counts.check_window_start, counts.check_window_count, now);
+    counts.check_window_start = next.start;
+    counts.check_window_count = next.count;
+    state.usage[key] = counts;
+    save(state);
+    return next.allow;
   }
 
   async reserveUpload(ownerId: string, filename: string, now = new Date()) {

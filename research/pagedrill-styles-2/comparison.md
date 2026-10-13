@@ -32,8 +32,8 @@ Lawrence's bar: cheaper AND does more. Legend: ✓ yes · ✗ no · ~ partial ·
 | Reference data checked against Crossref/PubMed | ✓ | ✗ | ~ (imports metadata) | ~ (Find Reference Updates) | ? | ✗ | — | ~ (CitePilot: invalid DOIs, retractions) | ✓ DOI fetch | ✗ |
 | APA 7 | ✓ verified | ✓ | ✓ CSL | ✓ | ✓ | ✓ | — | ✓ | ✓ | ✗ (6th) |
 | MLA 9 | ~ layout verified; citations partly | ✓ | ✓ CSL | ✓ | ✓ | ✓ | — | ✓ | ✓ | ~ (edition unstated) |
-| IEEE | ✓ verified (conference template) | ✗ | ✓ CSL | ✓ | ? | ✗ | — | ✓ | ✓ | ✓ (citations only) |
-| Vancouver | verified (ICMJE + NLM samples + Citing Medicine ch. 1–2; layout is a journal option) | ✗ | ✓ CSL | ✓ | ? | ✗ | — | ✗ (checker only) | ✗ | ✗ |
+| IEEE | ✓ verified (conference template); hidden at launch | ✗ | ✓ CSL | ✓ | ? | ✗ | — | ✓ | ✓ | ✓ (citations only) |
+| Vancouver | verified (ICMJE + NLM samples + Citing Medicine ch. 1–2; layout is a journal option); hidden at launch | ✗ | ✓ CSL | ✓ | ? | ✗ | — | ✗ (checker only) | ✗ | ✗ |
 | Chicago / Turabian / Harvard | ✗ (licensing) | Turabian ✓ | ✓ | ✓ | ✓ | Chicago ✓ | — | ✓ all three | Chicago ✓ | Chicago ✓ |
 | Army memo AR 25-50 | ✓ verified (formats existing memo) | ✗ | ✗ | ✗ | ✗ | ✗ | ✓ generates new memos (PDF) | ✗ | ✗ | ✗ |
 | Other military (Navy/USMC, Tongue and Quill, NCOER, DA 4856) | ✗ (sources unverified) | ✗ | ✗ | ✗ | ✗ | ✗ | ✓ NCOER/OER bullets, DA 4856, awards | ✗ | ✗ | ✗ |

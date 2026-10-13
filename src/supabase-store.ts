@@ -1,7 +1,7 @@
 import crypto from "node:crypto";
 import { supabaseServiceKey, supabaseUrl } from "./config.js";
 import { ToolError } from "./errors.js";
-import { countKey, emptyUsage, expiryFrom, monthKey, normalizeUsage, planCaps, QuotaError, tierFor, usageView, type UsageCounts, type UsageMetric } from "./quota.js";
+import { CHECK_LIMIT, countKey, emptyUsage, expiryFrom, monthKey, normalizeUsage, planCaps, QuotaError, tierFor, usageView, type UsageCounts, type UsageMetric } from "./quota.js";
 import type { FileRow, Profile, ProposalRow, SavedFile, VersionRow } from "./store.js";
 
 type Row = Record<string, unknown>;
@@ -111,7 +111,9 @@ export class SupabaseStore {
       checks: Number(row.checks ?? 0),
       free_formats: Number(row.free_formats ?? 0),
       free_previews: Number(row.free_previews ?? 0),
-      free_files: Number(row.free_files ?? 0)
+      free_files: Number(row.free_files ?? 0),
+      check_window_start: typeof row.check_window_start === "string" ? row.check_window_start : null,
+      check_window_count: Number(row.check_window_count ?? 0)
     });
   }
 
@@ -125,16 +127,13 @@ export class SupabaseStore {
     const profile = await this.getProfile(ownerId);
     if (!profile) throw new ToolError("Account not found.", "not_found");
     const tier = tierFor(profile);
-    const counts = await this.counts(ownerId, now);
     const stored = countKey(tier, metric);
     const cap = planCaps(tier)[metric];
-    if (counts[stored] >= cap) throw new QuotaError(metric, counts[stored], cap, tier, now);
-    counts[stored] += 1;
-    await rest(`usage_monthly?on_conflict=owner_id,month`, {
+    const used = await rest<number>("rpc/usage_charge", {
       method: "POST",
-      headers: { Prefer: "resolution=merge-duplicates,return=representation" },
-      body: JSON.stringify({ owner_id: ownerId, month: monthKey(now), ...counts })
+      body: JSON.stringify({ p_owner: ownerId, p_month: monthKey(now), p_metric: stored, p_cap: cap })
     });
+    if (Number(used) === -1) throw new QuotaError(metric, cap, cap, tier, now);
   }
 
   async charge(ownerId: string, metric: Exclude<UsageMetric, "checks">, now = new Date()): Promise<void> {
@@ -142,13 +141,26 @@ export class SupabaseStore {
   }
 
   async noteCheck(ownerId: string, now = new Date()): Promise<void> {
-    const counts = await this.counts(ownerId, now);
-    counts.checks += 1;
-    await rest(`usage_monthly?on_conflict=owner_id,month`, {
+    if (!ownerId) return;
+    await rest("rpc/usage_charge", {
       method: "POST",
-      headers: { Prefer: "resolution=merge-duplicates,return=representation" },
-      body: JSON.stringify({ owner_id: ownerId, month: monthKey(now), ...counts })
+      body: JSON.stringify({ p_owner: ownerId, p_month: monthKey(now), p_metric: "checks", p_cap: 0 })
     });
+  }
+
+  /** Hourly check_document window. An empty owner cannot be a usage_monthly key and is refused. */
+  async allowCheck(ownerId: string, now = new Date()): Promise<boolean> {
+    if (!ownerId) return false;
+    const allowed = await rest<boolean>("rpc/usage_allow_check", {
+      method: "POST",
+      body: JSON.stringify({
+        p_owner: ownerId,
+        p_month: monthKey(now),
+        p_now: now.toISOString(),
+        p_limit: CHECK_LIMIT
+      })
+    });
+    return allowed === true;
   }
 
   async reserveUpload(ownerId: string, filename: string, now = new Date()) {

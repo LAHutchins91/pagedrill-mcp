@@ -11,8 +11,8 @@ Support: [ouroborosplugins@gmail.com](mailto:ouroborosplugins@gmail.com)
 | APA 7 student paper | yes | 28 pass, 0 fail, 5 flagged |
 | APA 7 professional paper | yes | running head, author note, and abstract flagged when missing |
 | Army memorandum, AR 25-50 | yes | 20 pass, 0 fail, 4 flagged |
-| IEEE conference paper, US letter | yes | 28 pass, 0 fail, 7 flagged |
-| Vancouver (ICMJE + NLM) | yes | 12 pass, 0 fail, 5 flagged |
+| IEEE conference paper, US letter | no | verified and hidden at launch. 28 pass, 0 fail, 7 flagged |
+| Vancouver (ICMJE + NLM) | no | verified and hidden at launch. 12 pass, 0 fail, 5 flagged |
 | MLA 9 | no | loaded and hidden. Secs. 2.90, 2.106–2.109, and the citation sections through 5.130 are implemented. Sec. 2.110 and the unread title-within-a-title patterns are not, so the style stays refused |
 
 Flagged on the APA student sample, by design: affiliation, course name, a single subsection, Toner's missing date, Sanchiz's missing DOI and issue, and the Toner citation without a year. Nothing in those fields is looked up or invented.
@@ -27,7 +27,7 @@ Army copy is an unclassified drafting aid. Pagedrill is not endorsed by the Depa
 
 ## Tools
 
-`check_document` is free, rate-limited, and does not change the file. It does not count against the monthly caps. An account without a trial or Pro subscription can check a document and gets one fully formatted download a month.
+`check_document` is free, rate-limited, and does not change the file. It does not count against the monthly caps. An account without a trial or Pro subscription can check a document. Formatted downloads and previews require a trial or Pro subscription.
 
 `propose_format` returns the change list, flags, and checklist. `apply_format` needs the `proposal_id` and `base_version` from that proposal. Pass `supplied.track_changes` when the user wants the wording edits written as Word revisions (`w:ins` / `w:del`, author Pagedrill). Pass `supplied.table_of_contents` when the user wants a TOC field for a thesis or long paper. Word fills that field from heading styles. Pagedrill does not type the entries. `undo` restores an earlier version, including the imported bytes. `import_file` takes a ChatGPT attachment download URL. Other clients use `start_upload` and the signed PUT link.
 
@@ -37,9 +37,9 @@ The author's words stay. APA may change citation punctuation and name-list mecha
 
 ## Caps and billing
 
-Without a trial or Pro subscription, the free tier is the check report plus one fully formatted download a month (and two previews, so that download can be proposed first). Trial and Pro both allow 60 formatted documents and 120 previews a month, and files up to 25 MB. A separate file-count cap of 120 a month limits storage on those plans. The free file cap is 5. Free usage is counted separately, so time already spent on a trial does not spend the free download. Past a cap, the call is blocked. There is no overage charge.
+Without a trial or Pro subscription, the free tier is the check report only. Formatted documents and previews are not included. Trial and Pro both allow 60 formatted documents and 120 previews a month, and files up to 25 MB. A separate file-count cap of 120 a month limits storage on those plans. The free file cap is 5, so a document can be uploaded and checked. Free file uploads are counted separately, so time already spent on a trial does not spend them. The check rate limit is 30 calls an hour per account and is stored with that account's monthly counters. Past a cap, the call is blocked. There is no overage charge.
 
-Checkout uses `STRIPE_PRODUCT_ID`, `STRIPE_PRICE_MONTHLY`, and `STRIPE_PRICE_YEARLY`. Those objects are not created here. If any of them is unset, checkout returns 503. The trial is 14 days, a card is not required to start, and a missing payment method at the end of the trial cancels the subscription. Stripe shows the amount before anyone pays.
+Checkout uses `STRIPE_PRODUCT_ID`, `STRIPE_PRICE_MONTHLY`, and `STRIPE_PRICE_YEARLY`. Those objects are not created here. If any of them is unset, checkout returns 503. The trial is 7 days, a card is not required to start, and a missing payment method at the end of the trial cancels the subscription. Stripe shows the amount before anyone pays.
 
 Files are deleted 24 hours after last use. Logs store the operation, a status code, a hash, and a size. They do not store document text. Document text is not used for training.
 
@@ -60,4 +60,4 @@ The container image is `Dockerfile`. It is not deployed by this repository's tes
 
 ## Research
 
-`research/pagedrill-seed/` is the preserved seed archive: checklists, `sources.md`, profiles, prototype scripts, and samples. `research/pagedrill-styles-2/` is the follow-up archive, including the IEEE and Vancouver checklists and `comparison.md`. Citing Medicine Chapter 1 (NBK7282) and Chapter 2 (NBK7271) are the browser print-PDFs in `research/vanc_src/citing_medicine/`. MLA Handbook notes and page images are in `research/mla_answers/`. `research/archives/` holds the archive files themselves. MLA 9 stays hidden because sec. 2.110 and the unread title-within-a-title patterns (a quoted title inside a quoted title; a quoted title inside an italic title) were not on the supplied pages.
+`research/pagedrill-seed/` is the preserved seed archive: checklists, `sources.md`, profiles, prototype scripts, and samples. `research/pagedrill-styles-2/` is the follow-up archive, including the IEEE and Vancouver checklists and `comparison.md`. Citing Medicine Chapter 1 (NBK7282) and Chapter 2 (NBK7271) are the browser print-PDFs in `research/vanc_src/citing_medicine/`. MLA Handbook notes and page images are in `research/mla_answers/`. `research/archives/` holds the archive files themselves. At launch only APA 7 and AR 25-50 can be selected. IEEE and Vancouver stay verified and hidden. MLA 9 stays hidden because sec. 2.110 and the unread title-within-a-title patterns (a quoted title inside a quoted title; a quoted title inside an italic title) were not on the supplied pages.

@@ -33,7 +33,7 @@ def _run(payload: dict) -> dict:
     if action == "list_styles":
         styles = []
         for profile in load_profiles():
-            if profile.get("hidden") is True and not profile.get("selectable"):
+            if profile.get("hidden") is True:
                 continue
             styles.append(
                 {
@@ -52,46 +52,11 @@ def _run(payload: dict) -> dict:
         return {"kind": "docx"}
     if action == "check":
         profile = require_selectable(str(payload.get("style_id") or ""))
-        original = _decode(payload)
-        report = evaluate(original, profile)
-        return {"checklist": report, "notice": _notice(profile)}
+        return check_loaded(profile, _decode(payload))
     if action == "format":
         profile = require_selectable(str(payload.get("style_id") or ""))
-        original = _decode(payload)
         supplied = payload.get("supplied") if isinstance(payload.get("supplied"), dict) else {}
-        if profile["engine"] == "apa-author-date":
-            formatted = format_apa(original, profile, supplied)
-        elif profile["engine"] == "ar25-50-memorandum":
-            formatted = format_memo(original, profile, supplied)
-        elif profile["engine"] == "ieee-conference":
-            formatted = format_ieee(original, profile, supplied)
-        elif profile["engine"] == "vancouver":
-            formatted = format_vancouver(original, profile, supplied)
-        else:
-            raise PagedrillRefusal("That style is not implemented.", "style_not_selectable")
-        checklist = evaluate(formatted["docx"], profile, original)
-        if checklist["counts"]["FAIL"]:
-            raise PagedrillRefusal("The formatted document failed a verified checklist rule. Pagedrill did not save it.", "checklist_failed")
-        data = formatted["docx"]
-        verification = formatted["verification"]
-        return {
-            "data_b64": base64.b64encode(data).decode("ascii"),
-            "sha256": hashlib.sha256(data).hexdigest(),
-            "size": len(data),
-            "changes": formatted["changes"],
-            "flags": formatted["flags"],
-            "verification": {
-                "changed_parts": verification.get("changed_parts"),
-                "removed_parts": verification.get("removed_parts"),
-                "added_parts": verification.get("added_parts"),
-                "untouched_part_count": verification.get("untouched_part_count"),
-                "untouched_identical": verification.get("untouched_identical"),
-                "basis": verification.get("basis") or "in-place",
-            },
-            "checklist": checklist,
-            "notice": formatted.get("notice") or _notice(profile),
-            "title": formatted.get("title"),
-        }
+        return format_loaded(profile, _decode(payload), supplied)
     if action == "render_references":
         profile = require_selectable(str(payload.get("style_id") or ""))
         kind = str(payload.get("format") or "")
@@ -144,6 +109,48 @@ def _docx(data: bytes) -> None:
         raise PagedrillRefusal("Pagedrill accepts .docx files.", "unsupported_format") from exc
     if "word/document.xml" not in names:
         raise PagedrillRefusal("Pagedrill accepts .docx files.", "unsupported_format")
+
+
+def check_loaded(profile: dict, original: bytes) -> dict:
+    return {"checklist": evaluate(original, profile), "notice": _notice(profile)}
+
+
+def format_loaded(profile: dict, original: bytes, supplied: dict | None = None) -> dict:
+    """Format a loaded profile. Public dispatch still refuses a hidden style."""
+    supplied = supplied or {}
+    if profile["engine"] == "apa-author-date":
+        formatted = format_apa(original, profile, supplied)
+    elif profile["engine"] == "ar25-50-memorandum":
+        formatted = format_memo(original, profile, supplied)
+    elif profile["engine"] == "ieee-conference":
+        formatted = format_ieee(original, profile, supplied)
+    elif profile["engine"] == "vancouver":
+        formatted = format_vancouver(original, profile, supplied)
+    else:
+        raise PagedrillRefusal("That style is not implemented.", "style_not_selectable")
+    checklist = evaluate(formatted["docx"], profile, original)
+    if checklist["counts"]["FAIL"]:
+        raise PagedrillRefusal("The formatted document failed a verified checklist rule. Pagedrill did not save it.", "checklist_failed")
+    data = formatted["docx"]
+    verification = formatted["verification"]
+    return {
+        "data_b64": base64.b64encode(data).decode("ascii"),
+        "sha256": hashlib.sha256(data).hexdigest(),
+        "size": len(data),
+        "changes": formatted["changes"],
+        "flags": formatted["flags"],
+        "verification": {
+            "changed_parts": verification.get("changed_parts"),
+            "removed_parts": verification.get("removed_parts"),
+            "added_parts": verification.get("added_parts"),
+            "untouched_part_count": verification.get("untouched_part_count"),
+            "untouched_identical": verification.get("untouched_identical"),
+            "basis": verification.get("basis") or "in-place",
+        },
+        "checklist": checklist,
+        "notice": formatted.get("notice") or _notice(profile),
+        "title": formatted.get("title"),
+    }
 
 
 def _notice(profile: dict) -> str | None:

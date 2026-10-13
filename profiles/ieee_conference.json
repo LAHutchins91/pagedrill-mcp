@@ -132,7 +132,7 @@
   },
   "engine": "ieee-conference",
   "checklist_verified": true,
-  "hidden": false,
+  "hidden": true,
   "source_keys": {
     "template": "https://www.ieee.org/conferences/publishing/templates.html (Microsoft Word, US letter, 'Updated 2024'; copy: ieee_src/conference-template-letter.doc)",
     "esm": "https://docs.google.com/document/d/1OalFYqVfxKKMelF79U3B93SjmIEiTnJC12wPJrKeSDM (IEEE Editorial Style Manual for Authors, linked from journals.ieeeauthorcenter.ieee.org; copy: ieee_src/esm_current.pdf)",

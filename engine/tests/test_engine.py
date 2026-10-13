@@ -7,9 +7,10 @@ from pathlib import Path
 from docx import Document
 from io import BytesIO
 
-from pagedrill.engine import dispatch
+from pagedrill.bibliography import render_imported
+from pagedrill.engine import check_loaded, dispatch, format_loaded
 from pagedrill.errors import PagedrillRefusal
-from pagedrill.profiles import require_selectable
+from pagedrill.profiles import get_profile, require_selectable
 from pagedrill.words import assert_apa_body_words
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -19,21 +20,41 @@ def load(name: str) -> str:
     return base64.b64encode((ROOT / "samples" / name).read_bytes()).decode("ascii")
 
 
+def direct_format(style_id: str, data_b64: str, supplied: dict | None = None) -> dict:
+    """Exercise a verified engine while public dispatch still refuses a hidden style."""
+    try:
+        result = format_loaded(get_profile(style_id), base64.b64decode(data_b64), supplied or {})
+        return {"ok": True, "result": result}
+    except PagedrillRefusal as exc:
+        return {"ok": False, "error": {"code": exc.code, "reason": str(exc)}}
+
+
+def direct_check(style_id: str, data_b64: str) -> dict:
+    return {"ok": True, "result": check_loaded(get_profile(style_id), base64.b64decode(data_b64))}
+
+
+def direct_render(style_id: str, kind: str, text: str) -> dict:
+    return {"ok": True, "result": render_imported(text, kind, get_profile(style_id))}
+
+
 class Styles(unittest.TestCase):
     def test_only_verified_styles_are_selectable(self):
         styles = dispatch({"action": "list_styles"})["result"]["styles"]
         selectable = {item["id"] for item in styles if item["selectable"]}
         self.assertEqual(
             selectable,
-            {"apa7-student", "apa7-professional", "army-ar25-50-memorandum", "ieee-conference-letter", "vancouver-icmje-nlm"},
+            {"apa7-student", "apa7-professional", "army-ar25-50-memorandum"},
         )
         listed = {item["id"] for item in styles}
-        self.assertNotIn("mla9-research-paper", listed)
-        self.assertIn("vancouver-icmje-nlm", listed)
-        with self.assertRaises(PagedrillRefusal) as caught:
-            require_selectable("mla9-research-paper")
-        self.assertEqual(caught.exception.code, "style_not_selectable")
-        self.assertTrue(require_selectable("vancouver-icmje-nlm")["selectable"])
+        self.assertEqual(listed, selectable)
+        for style_id in ("mla9-research-paper", "ieee-conference-letter", "vancouver-icmje-nlm"):
+            self.assertNotIn(style_id, listed)
+            with self.assertRaises(PagedrillRefusal) as caught:
+                require_selectable(style_id)
+            self.assertEqual(caught.exception.code, "style_not_selectable")
+            refused = dispatch({"action": "format", "style_id": style_id, "data_b64": load("apa_before.docx")})
+            self.assertFalse(refused["ok"])
+            self.assertEqual(refused["error"]["code"], "style_not_selectable")
 
     def test_apa_student_checklist_and_word_equality(self):
         result = dispatch({"action": "format", "style_id": "apa7-student", "data_b64": load("apa_before.docx")})
@@ -119,7 +140,7 @@ class Styles(unittest.TestCase):
         self.assertEqual(result["error"]["code"], "style_not_selectable")
 
     def test_ieee_conference_checklist_and_journal_references(self):
-        result = dispatch({"action": "format", "style_id": "ieee-conference-letter", "data_b64": load("ieee_before.docx")})
+        result = direct_format("ieee-conference-letter", load("ieee_before.docx"))
         self.assertTrue(result["ok"], result.get("error"))
         counts = result["result"]["checklist"]["counts"]
         self.assertEqual(counts, {"PASS": 28, "FAIL": 0, "FLAG": 7})
@@ -131,7 +152,7 @@ class Styles(unittest.TestCase):
             blob,
         )
         original = (ROOT / "samples" / "ieee_before.docx").read_bytes()
-        checked = dispatch({"action": "check", "style_id": "ieee-conference-letter", "data_b64": base64.b64encode(original).decode("ascii")})
+        checked = direct_check("ieee-conference-letter", base64.b64encode(original).decode("ascii"))
         self.assertTrue(checked["ok"], checked.get("error"))
         self.assertGreater(checked["result"]["checklist"]["counts"]["FAIL"], 0)
         self.assertEqual(len(checked["result"]["checklist"]["rules"]), 35)
@@ -143,9 +164,7 @@ class Styles(unittest.TestCase):
         source.add_paragraph(book)
         raw = BytesIO()
         source.save(raw)
-        result = dispatch(
-            {"action": "format", "style_id": "ieee-conference-letter", "data_b64": base64.b64encode(raw.getvalue()).decode("ascii")}
-        )
+        result = direct_format("ieee-conference-letter", base64.b64encode(raw.getvalue()).decode("ascii"))
         self.assertTrue(result["ok"], result.get("error"))
         self.assertEqual(result["result"]["checklist"]["counts"]["FAIL"], 0)
         document = Document(BytesIO(base64.b64decode(result["result"]["data_b64"])))
@@ -189,7 +208,7 @@ class Styles(unittest.TestCase):
   publisher = {Example Press}
 }
 """
-        result = dispatch({"action": "render_references", "style_id": "ieee-conference-letter", "format": "bib", "text": bib})
+        result = direct_render("ieee-conference-letter", "bib", bib)
         self.assertTrue(result["ok"], result.get("error"))
         entries = result["result"]["entries"]
         article, book = entries
@@ -259,7 +278,7 @@ class Vancouver(unittest.TestCase):
 
         for source, expected in PAGE_EXAMPLES.items():
             self.assertEqual(elide_pages(source), expected, source)
-        result = dispatch({"action": "format", "style_id": "vancouver-icmje-nlm", "data_b64": load("vanc_before.docx")})
+        result = direct_format("vancouver-icmje-nlm", load("vanc_before.docx"))
         self.assertTrue(result["ok"], result.get("error"))
         self.assertEqual(result["result"]["checklist"]["counts"], {"PASS": 12, "FAIL": 0, "FLAG": 5})
         self.assertEqual(result["result"]["verification"]["basis"], "in-place")
@@ -275,7 +294,7 @@ class Vancouver(unittest.TestCase):
         self.assertIn("proper noun", flagged)
         self.assertIn("12088834", flagged)
         original = (ROOT / "samples" / "vanc_before.docx").read_bytes()
-        checked = dispatch({"action": "check", "style_id": "vancouver-icmje-nlm", "data_b64": base64.b64encode(original).decode("ascii")})
+        checked = direct_check("vancouver-icmje-nlm", base64.b64encode(original).decode("ascii"))
         self.assertTrue(checked["ok"], checked.get("error"))
         self.assertGreater(checked["result"]["checklist"]["counts"]["FAIL"], 0)
         self.assertEqual(len(checked["result"]["checklist"]["rules"]), 17)
@@ -304,42 +323,21 @@ class Vancouver(unittest.TestCase):
         import zipfile
 
         raw = load("vanc_before.docx")
-        comma = dispatch(
-            {
-                "action": "format",
-                "style_id": "vancouver-icmje-nlm",
-                "data_b64": raw,
-                "supplied": {"journal_options": {"multiple_citation": "comma"}},
-            }
-        )
+        comma = direct_format("vancouver-icmje-nlm", raw, {"journal_options": {"multiple_citation": "comma"}})
         self.assertTrue(comma["ok"], comma.get("error"))
         self.assertEqual(comma["result"]["checklist"]["counts"]["FAIL"], 0)
         document = Document(BytesIO(base64.b64decode(comma["result"]["data_b64"])))
         blob = "\n".join(paragraph.text for paragraph in document.paragraphs)
         self.assertIn("(1,4)", blob)
         self.assertNotIn("(1, 4)", blob)
-        tracked = dispatch(
-            {
-                "action": "format",
-                "style_id": "vancouver-icmje-nlm",
-                "data_b64": raw,
-                "supplied": {"track_changes": True},
-            }
-        )
+        tracked = direct_format("vancouver-icmje-nlm", raw, {"track_changes": True})
         self.assertTrue(tracked["ok"], tracked.get("error"))
         self.assertEqual(tracked["result"]["checklist"]["counts"], {"PASS": 12, "FAIL": 0, "FLAG": 5})
         package = zipfile.ZipFile(BytesIO(base64.b64decode(tracked["result"]["data_b64"])))
         xml = package.read("word/document.xml")
         self.assertIn(b'w:author="Pagedrill"', xml)
         self.assertIn(b"<w:ins", xml)
-        refused = dispatch(
-            {
-                "action": "format",
-                "style_id": "vancouver-icmje-nlm",
-                "data_b64": raw,
-                "supplied": {"journal_options": {"page_layout": "times"}},
-            }
-        )
+        refused = direct_format("vancouver-icmje-nlm", raw, {"journal_options": {"page_layout": "times"}})
         self.assertFalse(refused["ok"])
         self.assertEqual(refused["error"]["code"], "bad_request")
         bib = """@article{ada2020,
@@ -359,7 +357,7 @@ class Vancouver(unittest.TestCase):
   publisher = {Mosby}
 }
 """
-        imported = dispatch({"action": "render_references", "style_id": "vancouver-icmje-nlm", "format": "bib", "text": bib})
+        imported = direct_render("vancouver-icmje-nlm", "bib", bib)
         self.assertTrue(imported["ok"], imported.get("error"))
         article, book = imported["result"]["entries"]
         self.assertIn("Applied Physics Letters", article["rendered"])
