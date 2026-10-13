@@ -1,0 +1,19 @@
+{
+  "_note": "Structured fields as the user's assistant would extract them from the messy reference text (the LLM step). The engine renders them deterministically and runs a grounding check: every field value must appear in the original reference text, so nothing can be invented. Fields the student did not type are null and get flagged.",
+  "references": [
+    {"key": "toner", "type": "webpage-news",
+     "authors": [{"family": "Toner", "initials": "K."}],
+     "date": null, "title": "When Covid-19 hit, he turned his newspaper route into a lifeline for senior citizens",
+     "site": "CNN",
+     "url": "https://www.cnn.com/2020/06/04/us/coronavirus-newspaper-deliveryman-groceries-senior-citizens-cnnheroes-trnd/index.html"},
+    {"key": "rybaczewska", "type": "journal-article",
+     "authors": [{"family": "Rybaczewska", "given": "Maria"}, {"family": "Sparks", "given": "Leigh"}],
+     "year": "2022", "title": "Ageing consumers and e-commerce activities", "journal": "Ageing and Society",
+     "volume": "42", "issue": "8", "pages": "1879-1898", "doi": "10.1017/S0144686X20001932"},
+    {"key": "sanchiz", "type": "journal-article",
+     "authors": [{"family": "Sanchiz", "initials": "M."}, {"family": "Chevalier", "initials": "A."}, {"family": "Amadieu", "initials": "F."}],
+     "year": "2017",
+     "title": "How do older and young adults start searching for information? Impact of age, domain knowledge and problem complexity on the different steps of information searching",
+     "journal": "Computers in Human Behavior", "volume": "72", "issue": null, "pages": "67-78", "doi": null}
+  ]
+}

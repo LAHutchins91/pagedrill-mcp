@@ -1,0 +1,106 @@
+{
+  "id": "vancouver-icmje-nlm",
+  "name": "Vancouver (ICMJE Recommendations + NLM Sample References / Citing Medicine 2nd ed.) — citations and reference list",
+  "publisher": "ICMJE / U.S. National Library of Medicine",
+  "status": "verified-vancouver-icmje-nlm",
+  "verified_on": "2026-10-11",
+  "sources": [
+    "https://www.icmje.org/recommendations/browse/manuscript-preparation/preparing-for-submission.html (section g. References)",
+    "https://www.nlm.nih.gov/bsd/uniform_requirements.html (Samples of Formatted References for Authors of Journal Articles, last reviewed June 2, 2026)",
+    "Citing Medicine, 2nd ed., Chapter 1 Journals (NBK7282), browser print-PDF: research/vanc_src/citing_medicine/NBK7282-chapter-1-journals.pdf",
+    "Citing Medicine, 2nd ed., Chapter 2 Books (NBK7271), browser print-PDF: research/vanc_src/citing_medicine/NBK7271-chapter-2-books.pdf",
+    "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/esummary.fcgi (PubMed source-field abbreviations recorded for the sample journals)"
+  ],
+  "source_keys": {
+    "icmje": "https://www.icmje.org/recommendations/browse/manuscript-preparation/preparing-for-submission.html",
+    "nlm_samples": "https://www.nlm.nih.gov/bsd/uniform_requirements.html",
+    "citing_ch1": "Citing Medicine 2nd ed., Chapter 1 Journals (NBK7282)",
+    "citing_ch2": "Citing Medicine 2nd ed., Chapter 2 Books (NBK7271)",
+    "pubmed": "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/esummary.fcgi"
+  },
+  "journal_options": {
+    "note": "ICMJE and Citing Medicine leave these three choices to the journal. The selected value is a profile option, not an NLM rule.",
+    "multiple_citation": {
+      "selected": "comma-space",
+      "choices": {
+        "comma-space": "(1, 4)",
+        "comma": "(1,4)",
+        "range": "(1-3) when the numbers are consecutive; otherwise comma-space between runs"
+      },
+      "source": "ICMJE g. References does not specify the separator. Citing Medicine chapters 1 and 2 state reference-list components, not in-text multi-number punctuation."
+    },
+    "list_numbering": {
+      "selected": "period-space",
+      "choices": {
+        "period-space": "1. ",
+        "space": "1 ",
+        "paren": "(1) "
+      },
+      "source": "Neither ICMJE g. References nor NLM Sample References shows the list number. Citing Medicine examples are unnumbered component strings."
+    },
+    "page_layout": {
+      "selected": "unchanged",
+      "choices": {
+        "unchanged": "Leave the author's font, spacing, margins, and title page."
+      },
+      "source": "ICMJE says to consult the journal's instructions. Citing Medicine chapters 1 and 2 do not set page layout."
+    }
+  },
+  "references": {
+    "authors": {
+      "journal": "Surname and at most two initials, no periods. First six, then et al. when more than six.",
+      "journal_source": "NLM Sample References #1: 'List the first six authors, followed by et al.' Citing Medicine Chapter 1, Author, General Rules, says to give all authors and points to Appendix F for MEDLINE. Appendix F is not in the chapter PDF. Chapter 1 example 3 shows the optional limit 'to 6 authors' as et al.",
+      "book": "Give all authors, regardless of the number.",
+      "book_source": "Citing Medicine Chapter 2A, Author/Editor, General Rules. Example 3 lists all. An optional limit to the first three is example 4, not the default."
+    },
+    "title": {
+      "case": "Sentence case. Capitalize only the first word, proper nouns, proper adjectives, acronyms, and initialisms. Do not capitalize after a colon.",
+      "source": "Citing Medicine Chapter 1, Article Title, General Rules; Chapter 2A, Title for Entire Books, General Rules"
+    },
+    "date": {
+      "format": "year, then a three-letter English month and the day when the typed entry has them (2004 May 5). End a journal date with a semicolon when a volume or issue follows.",
+      "source": "Citing Medicine Chapter 1, Date of Publication for Journal Articles, General Rules. Book dates: Chapter 2A, Date of Publication (year required; month after the year only when present)."
+    },
+    "pages": {
+      "format": "Drop repeated leading digits and keep at least one digit of the end (123-125 becomes 123-5). Do not shorten when a letter follows the number (124A-126A). Keep a leading letter (S10-8). Keep roman numerals as found. Shorten each span of a discontinuous list on its own.",
+      "source": "Citing Medicine Chapter 1, Location (Pagination), General Rules and examples 59-61. The same shortening is in Chapter 2C, Location (Pagination) of the Part of a Book."
+    },
+    "medline_attested_titles": {
+      "New England Journal of Medicine": "N Engl J Med",
+      "Brain Research": "Brain Res",
+      "BMJ": "BMJ"
+    },
+    "medline_attested_note": "MEDLINE abbreviations from the PubMed source field, stored with the sample and not looked up at format time: N Engl J Med (PMID 12140307), Brain Res (PMID 12062471), BMJ (PMID 19129307). Any other journal title is left as typed unless the user supplies the abbreviation.",
+    "months": {
+      "January": "Jan",
+      "February": "Feb",
+      "March": "Mar",
+      "April": "Apr",
+      "May": "May",
+      "June": "Jun",
+      "July": "Jul",
+      "August": "Aug",
+      "September": "Sep",
+      "October": "Oct",
+      "November": "Nov",
+      "December": "Dec"
+    }
+  },
+  "months": {
+    "January": "Jan",
+    "February": "Feb",
+    "March": "Mar",
+    "April": "Apr",
+    "May": "May",
+    "June": "Jun",
+    "July": "Jul",
+    "August": "Aug",
+    "September": "Sep",
+    "October": "Oct",
+    "November": "Nov",
+    "December": "Dec"
+  },
+  "engine": "vancouver",
+  "checklist_verified": true,
+  "hidden": true
+}

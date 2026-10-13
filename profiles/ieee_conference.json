@@ -1,0 +1,142 @@
+{
+  "id": "ieee-conference-letter",
+  "name": "IEEE conference paper (US letter), IEEE Reference Style",
+  "publisher": "IEEE",
+  "status": "verified-ieee-conference-letter",
+  "verified_on": "2026-10-10",
+  "sources": [
+    "https://www.ieee.org/conferences/publishing/templates.html (Microsoft Word, US letter, 'Updated 2024'; copy: ieee_src/conference-template-letter.doc)",
+    "https://docs.google.com/document/d/1OalFYqVfxKKMelF79U3B93SjmIEiTnJC12wPJrKeSDM (IEEE Editorial Style Manual for Authors, linked from journals.ieeeauthorcenter.ieee.org; copy: ieee_src/esm_current.pdf)",
+    "https://docs.google.com/document/d/e/2PACX-1vSBoV_hTIURPZKtQkxI6bAONJtjyDLxQIUvCHi-XPzD8NKLcxRfZrpvQLFrjWZ3M6FFR_Obau3R-t63/pub (IEEE Reference Style Guide for Authors V 3.28.2025, linked from the Author Center; copy: ieee_src/refguide_current.txt)",
+    "https://docs.google.com/spreadsheets/d/1D4xH38098a2xpq0sO16o9gQuje1bq_-GOinRRPTYZac (IEEE journal and magazine titles and reference abbreviations; copy: ieee_src/ieee_journal_abbreviations.csv)"
+  ],
+  "layout": {
+    "base_document": "profiles/assets/ieee_conference_letter.docx",
+    "how": "the official template's own styles, numbering, margins and column setup are reused; nothing is re-specified by us",
+    "styles": {
+      "title": "paper title",
+      "author": "Author",
+      "abstract": "Abstract",
+      "keywords": "Keywords",
+      "h1": "Heading 1",
+      "h2": "Heading 2",
+      "component_head": "Heading 5",
+      "body": "Body Text",
+      "reference": "references"
+    },
+    "title_section_columns": 1,
+    "body_columns": 2,
+    "body_column_space_twips": 360,
+    "pagination": "none (template: 'Do not add any kind of pagination anywhere in the paper')"
+  },
+  "text": {
+    "abstract_label": "Abstract\u2014",
+    "keywords_label": "Keywords\u2014",
+    "heading_numbers": "removed from text; the template numbers heads (template: 'Do not number text heads')",
+    "component_heads": {
+      "acknowledgements": "Acknowledgment",
+      "acknowledgments": "Acknowledgment",
+      "acknowledgement": "Acknowledgment",
+      "references": "References",
+      "bibliography": "References"
+    },
+    "paper_title_case": "headline style per ESM 'Title' (nouns, pronouns, adjectives, verbs, adverbs, subordinating conjunctions and prepositions longer than three letters capitalized; articles, coordinating conjunctions, short prepositions lowercase unless first/last). 'most short prepositions' is not a closed list -> flagged",
+    "lowercase_words": [
+      "a",
+      "an",
+      "the",
+      "and",
+      "but",
+      "for",
+      "or",
+      "nor",
+      "at",
+      "by",
+      "in",
+      "of",
+      "off",
+      "on",
+      "out",
+      "per",
+      "to",
+      "up",
+      "via",
+      "as"
+    ],
+    "abstract_words": "ESM: one paragraph, 150-250 words (Transactions rule; the conference template sets no length) -> advisory flag only"
+  },
+  "citations": {
+    "form": "[n] on the line, inside punctuation",
+    "order": "numbered in order of first citation (template: 'Number citations consecutively within brackets')",
+    "groups": "written out, ascending: [1], [2], [3] (no en-dash ranges)",
+    "years_in_text": "deleted (ESM References)",
+    "author_names_in_text": "kept: removing them changes the author's sentence; flagged when not integral (ESM)",
+    "in_reference_phrase": "flagged, not rewritten (ESM: write 'in [1]', not 'in reference [1]')"
+  },
+  "references": {
+    "authors": "initials before surname; all names up to six; more than six -> first author + 'et al.' (Ref. Guide: General guidelines)",
+    "last_two_join": ", and ",
+    "title": "sentence case in quotation marks, comma inside the closing quote (Ref. Guide examples; template: 'Capitalize only the first word in a paper title, except for proper nouns')",
+    "proper_noun_keep": [
+      "Gaussian",
+      "Fourier",
+      "Markov",
+      "Bayesian",
+      "Kalman",
+      "Maxwell",
+      "Boltzmann",
+      "Poisson",
+      "Laplace",
+      "Hilbert",
+      "Euler",
+      "Newton",
+      "Schr\u00f6dinger",
+      "Monte",
+      "Carlo",
+      "Internet"
+    ],
+    "journal_abbrev_order": [
+      "IEEE sheet",
+      "titles abbreviated in the Reference Guide's own examples",
+      "word table 'Common Abbreviations of Words in References' (every word must map, else full title kept + flag)"
+    ],
+    "guide_attested_titles": {
+      "Journal of Non-Crystalline Solids": "J. Non-Cryst. Solids",
+      "Applied Physics Letters": "Appl. Phys. Lett.",
+      "Journal of Applied Physics": "J. Appl. Phys."
+    },
+    "months": {
+      "January": "Jan.",
+      "February": "Feb.",
+      "March": "Mar.",
+      "April": "Apr.",
+      "May": "May",
+      "June": "Jun.",
+      "July": "Jul.",
+      "August": "Aug.",
+      "September": "Sep.",
+      "October": "Oct.",
+      "November": "Nov.",
+      "December": "Dec."
+    },
+    "months_source": "Ref. Guide examples: all twelve abbreviations (Jan., Feb., Mar., Apr., May, Jun., Jul., Aug., Sep., Oct., Nov., Dec.) occur in the guide's own examples",
+    "pages": "pp. first\u2013last (en dash, full digits as in the guide examples)",
+    "article_number": "Abbrev. month, year, Art. no. xxx",
+    "doi": ", doi: xxx.",
+    "final_period": "every reference ends with a period unless it ends with a URL",
+    "sheet_attested_titles": {
+      "IEEE Transactions on Biomedical Engineering": "IEEE Trans. Biomed. Eng.",
+      "IEEE Communications Letters": "IEEE Commun. Lett."
+    },
+    "sheet_attested_note": "These abbreviations are the ones checklist_ieee.md rule 28 verified for this sample against the IEEE abbreviation sheet. A journal in neither this list nor guide_attested_titles is left in full and flagged."
+  },
+  "engine": "ieee-conference",
+  "checklist_verified": true,
+  "hidden": true,
+  "source_keys": {
+    "template": "https://www.ieee.org/conferences/publishing/templates.html (Microsoft Word, US letter, 'Updated 2024'; copy: ieee_src/conference-template-letter.doc)",
+    "esm": "https://docs.google.com/document/d/1OalFYqVfxKKMelF79U3B93SjmIEiTnJC12wPJrKeSDM (IEEE Editorial Style Manual for Authors, linked from journals.ieeeauthorcenter.ieee.org; copy: ieee_src/esm_current.pdf)",
+    "refguide": "https://docs.google.com/document/d/e/2PACX-1vSBoV_hTIURPZKtQkxI6bAONJtjyDLxQIUvCHi-XPzD8NKLcxRfZrpvQLFrjWZ3M6FFR_Obau3R-t63/pub (IEEE Reference Style Guide for Authors V 3.28.2025, linked from the Author Center; copy: ieee_src/refguide_current.txt)",
+    "abbrev_sheet": "https://docs.google.com/spreadsheets/d/1D4xH38098a2xpq0sO16o9gQuje1bq_-GOinRRPTYZac (IEEE journal and magazine titles and reference abbreviations; copy: ieee_src/ieee_journal_abbreviations.csv)"
+  }
+}
